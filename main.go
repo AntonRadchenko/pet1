@@ -17,6 +17,7 @@ type RequestBody struct {
 func PostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
+		return
 	}
 	var requestBody RequestBody
 	// парсим json
@@ -30,6 +31,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 func GetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
+		return 
 	}
 	fmt.Println("Hello,", task) // пишем в терминал
 	_, err := w.Write([]byte("hello, " + task + "\n")) // пишем ответ пользователю
