@@ -23,6 +23,8 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	// парсим json
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		fmt.Println("err: ", err)
+		w.WriteHeader(http.StatusBadRequest)
+    	return
 	}
 	// записываем содержимое в нашу переменную task
 	task = requestBody.Task
