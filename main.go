@@ -7,7 +7,7 @@ import (
 )
 
 // глобальная переменная
-var task = []string{"Anton", "Ivan", "Petr"}
+var task = []string{"Petr", "Ivan", "Anton"}
 
 // структура тела запроса
 type RequestBody struct {
@@ -29,6 +29,8 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	// записываем содержимое в нашу переменную task
 	task = append(task, requestBody.Task)
 	fmt.Println("Task created succesfully!")
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Task created successfully\n"))
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
