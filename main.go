@@ -7,7 +7,7 @@ import (
 )
 
 // глобальная переменная
-var task string = "Anton"
+var task = []string{"Anton", "Ivan", "Petr"}
 
 // структура тела запроса
 type RequestBody struct {
@@ -24,19 +24,28 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		fmt.Println("err: ", err)
 		w.WriteHeader(http.StatusBadRequest)
-    	return
+		return
 	}
 	// записываем содержимое в нашу переменную task
-	task = requestBody.Task
+	task = append(task, requestBody.Task)
+	fmt.Println("Task created succesfully!")
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
+		return
+	}
+	if len(task) == 0 {
+		fmt.Println("Hello, nobody yet!")
+		_, err := w.Write([]byte("hello nobody yet!\n"))
+		if err != nil {
+			fmt.Println("fail to write HTTP response: ", err)
+		}
 		return 
 	}
-	fmt.Println("Hello,", task) // пишем в терминал
-	_, err := w.Write([]byte("hello, " + task + "\n")) // пишем ответ пользователю
+	fmt.Println("Hello,", task[len(task)-1])                        // пишем в терминал
+	_, err := w.Write([]byte("hello, " + task[len(task)-1] + "\n")) // пишем ответ пользователю
 	if err != nil {
 		fmt.Println("fail to write HTTP response: ", err)
 	}
