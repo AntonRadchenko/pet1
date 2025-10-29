@@ -7,7 +7,7 @@ import (
 )
 
 // глобальная переменная
-var task = []string{"Petr", "Ivan", "Anton"}
+var task = []string{}
 
 // структура тела запроса
 type RequestBody struct {
