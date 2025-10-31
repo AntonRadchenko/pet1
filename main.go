@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// Что сделали:
+// Что сделали для задания 2:
 // 1) Раделили структуры тела запроса и хранилища тасок (в теле просто таска, а в хранилище с айдишкой);
 // 2) Изменили глобальную переменную со слойса строк на слайс структур
 // 3) Изменили Post метод: таски теперь добавляются в новую глобальную переменную, и вместе с тем генерируются айдишки
@@ -16,7 +16,7 @@ import (
 // 6) Также изменили Get так, чтобы он выводил вместо последней таски хранилища, таску по айди (по query параметру)
 
 // Что осталось сделать для 2-го задания:
-// 1) реализовать rest логику - один путь, разные методы
+// 1) реализовать REST-логику - один путь, разные методы
 // 2) Сделать Delete метод
 
 // структура хранилища тасок
@@ -37,10 +37,6 @@ var idCounter int
 var idTasks = []TaskStruct{}
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
-		return
-	}
 	var requestBody RequestBody
 	// парсим json
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -71,10 +67,6 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PatchHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPatch {
-		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
-		return
-	}
 	// получаем id из query параметра в URL
 	id := r.URL.Query().Get("id")
 
@@ -133,11 +125,6 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода 405
-		return
-	}
-
 	// получаем id из query параметра в URL
 	id := r.URL.Query().Get("id")
 
@@ -186,10 +173,21 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func MainHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		GetHandler(w, r)
+	case http.MethodPost:
+		PostHandler(w, r)
+	case http.MethodPatch:
+		PatchHandler(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода
+	}
+}
+
 func main() {
-	http.HandleFunc("/hello", GetHandler)
-	http.HandleFunc("/task", PostHandler)
-	http.HandleFunc("/update", PatchHandler)
+	http.HandleFunc("/task", MainHandler)
 	if err := http.ListenAndServe(":9092", nil); err != nil { // слушаем порт 9092
 		fmt.Println("Ошибка во время работы HTTP сервера: ", err)
 	}
