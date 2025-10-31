@@ -14,10 +14,10 @@ import (
 // 4) Реализовали метод Patch - сравнивает айди из url с айди из хранилища с тасками и обновляет таску по этому айди.
 // 5) В Get методе реализовали метод через структуру хранилища, вмето структуры тела запроса.
 // 6) Также изменили Get так, чтобы он выводил вместо последней таски хранилища, таску по айди (по query параметру)
+// 7) Реализовали REST-логику с помощью объединения хендлеров в основной. Теперь один путь, разные методы.
 
 // Что осталось сделать для 2-го задания:
-// 1) реализовать REST-логику - один путь, разные методы
-// 2) Сделать Delete метод
+// 1) Сделать Delete метод
 
 // структура хранилища тасок
 type TaskStruct struct {
@@ -114,6 +114,7 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(msg + "\n"))
 		return
 	}
+
 	msg := "Task updated successfully"
 	fmt.Println(msg)
 	w.WriteHeader(http.StatusOK)
@@ -136,10 +137,11 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// если задач в хранилище пока нет, то выводить пока нечего
+	// если в хранилище пока не задач, то выводить пока нечего
 	if len(idTasks) == 0 {
 		msg := "No tasks to print yet!"
 		fmt.Println(msg)
+		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(msg + "\n"))
 		return
 	}
@@ -173,6 +175,57 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func DeleteHandler(w http.ResponseWriter, r *http.Request) {
+	// получаем id из query параметра в URL
+	id := r.URL.Query().Get("id")
+
+	// проверяем, был ли вообще передан id в URL
+	if id == "" {
+		msg := "missing id!"
+		fmt.Println(msg)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg + "\n"))
+		return
+	}
+
+	// если в хранилище пока нет задач, то удалять пока нечего
+	if len(idTasks) == 0 {
+		msg := "No tasks to print yet!"
+		fmt.Println(msg)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(msg + "\n"))
+		return 
+	}
+
+	// удаляем задачу по айди
+	deleted := false
+	for i := range idTasks {
+		if idTasks[i].ID == id {
+			idTasks = append(idTasks[:i], idTasks[i+1:]...) 
+			deleted = true
+			break
+		}
+	}
+	
+	// если не найден такой id
+	if !deleted {
+		msg := "Task not found!"
+		fmt.Println(msg)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(msg + "\n"))
+		return 
+	}
+
+	msg := "Task deleted successfully!"
+	fmt.Println(msg)
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(msg + "\n"))
+	if err != nil {
+		fmt.Println("fail to write HTTP response: ", err)
+		return
+	}
+}
+
 func MainHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -181,6 +234,8 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 		PostHandler(w, r)
 	case http.MethodPatch:
 		PatchHandler(w, r)
+	case http.MethodDelete:
+		DeleteHandler(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода
 	}
