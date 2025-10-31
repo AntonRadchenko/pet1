@@ -15,9 +15,7 @@ import (
 // 5) В Get методе реализовали метод через структуру хранилища, вмето структуры тела запроса.
 // 6) Также изменили Get так, чтобы он выводил вместо последней таски хранилища, таску по айди (по query параметру)
 // 7) Реализовали REST-логику с помощью объединения хендлеров в основной. Теперь один путь, разные методы.
-
-// Что осталось сделать для 2-го задания:
-// 1) Сделать Delete метод
+// 8) Реализовали Delete метод
 
 // структура хранилища тасок
 type TaskStruct struct {
@@ -62,7 +60,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(msg + "\n"))
 	if err != nil {
 		fmt.Println("fail to write HTTP response: ", err)
-		return 
+		return
 	}
 }
 
@@ -121,7 +119,7 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(msg + "\n"))
 	if err != nil {
 		fmt.Println("fail to write HTTP response: ", err)
-		return 
+		return
 	}
 }
 
@@ -171,7 +169,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(msg + "\n"))
 	if err != nil {
 		fmt.Println("fail to write HTTP response: ", err)
-		return 
+		return
 	}
 }
 
@@ -194,26 +192,26 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(msg)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(msg + "\n"))
-		return 
+		return
 	}
 
 	// удаляем задачу по айди
 	deleted := false
 	for i := range idTasks {
 		if idTasks[i].ID == id {
-			idTasks = append(idTasks[:i], idTasks[i+1:]...) 
+			idTasks = append(idTasks[:i], idTasks[i+1:]...)
 			deleted = true
 			break
 		}
 	}
-	
+
 	// если не найден такой id
 	if !deleted {
 		msg := "Task not found!"
 		fmt.Println(msg)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(msg + "\n"))
-		return 
+		return
 	}
 
 	msg := "Task deleted successfully!"
