@@ -12,10 +12,15 @@ import (
 // 2) Изменили глобальную переменную со слойса строк на слайс структур
 // 3) Изменили Post метод: таски теперь добавляются в новую глобальную переменную, и вместе с тем генерируются айдишки
 // 4) В Get методе реализовали метод через структуру хранилища, вмето структуры тела запроса.
-// 5) Также изменили Get так, чтобы он выводил вместо последней таски хранилища, таску по айди (по query параметру)
-// 6) Реализовали метод Patch - сравнивает айди из url с айди из хранилища с тасками и обновляет таску по этому айди.
-// 7) Реализовали REST-логику с помощью объединения хендлеров в основной. Теперь один путь, разные методы.
-// 8) Реализовали Delete метод
+// 5) Реализовали метод Patch - сравнивает айди из url с айди из хранилища с тасками и обновляет таску по этому айди.
+// 6) Реализовали REST-логику с помощью объединения хендлеров в основной. Теперь один путь, разные методы.
+// 7) Реализовали Delete метод
+
+// 9) сделать вместо вывода текста пользователю, вывод сущности (JSON):
+// - При DELETE ничего не нужно возвращать, кроме кода ответа 204
+// - При POST созданную сущность и код ответа 201
+// - При PATCH всю сущность
+// - При GET список сущностей
 
 // структура хранилища тасок
 type TaskStruct struct {
@@ -31,8 +36,8 @@ type RequestBody struct {
 // генератор айдишек для тасок
 var idCounter int
 
-// хранилище тасок (новая глобальная переменная)
-var idTasks = []TaskStruct{}
+// хранилище тасок (глобальная переменная)
+var tasks = []TaskStruct{}
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody RequestBody
@@ -45,21 +50,22 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// увеличиваем номер айдишки
 	idCounter++
-
 	// кладем в структуру нашу новую распаршенную таску с соответствующим айди
 	newTask := TaskStruct{
 		ID:   strconv.Itoa(idCounter),
 		Task: requestBody.Task,
 	}
+	// добавляем новую таску в хранилище
+	tasks = append(tasks, newTask)
 
-	// добавляем в хранилище тасок новую таску
-	idTasks = append(idTasks, newTask)
-	msg := "Task created successfully!"
-	fmt.Println(msg)
+	fmt.Println("Task created!")
 	w.WriteHeader(http.StatusCreated)
-	_, err := w.Write([]byte(msg + "\n"))
-	if err != nil {
-		fmt.Println("fail to write HTTP response: ", err)
+
+	// отправляем ответ клиенту
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(newTask); err != nil {
+		fmt.Println("err: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
@@ -87,19 +93,21 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// если задач в хранилище пока нет - то обновлять пока нечего
-	if len(idTasks) == 0 {
+	if len(tasks) == 0 {
 		msg := "No tasks to update yet!"
 		fmt.Println(msg)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(msg + "\n"))
 		return
 	}
-	// обновляем задачу (сопоставляем id из URL и таску из тела запроса)
-	updated := false
-	for i := range idTasks {
+	// обновляем задачу
+	updated := false           // флаг обновленной задачи
+	var updatedTask TaskStruct // переменная для хранения обновленной задачи
+	for i := range tasks {
 		// если id в URL совпадает с id таски в хранилище
-		if idTasks[i].ID == id {
-			idTasks[i].Task = request.Task // обновляем
+		if tasks[i].ID == id {
+			tasks[i].Task = request.Task // обновляем
+			updatedTask = tasks[i]       // сохраняем копию обновленной таски для ответа клиенту
 			updated = true
 			break
 		}
@@ -113,62 +121,34 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Task updated successfully"
-	fmt.Println(msg)
+	fmt.Println("Task updated successfully!")
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(msg + "\n"))
-	if err != nil {
-		fmt.Println("fail to write HTTP response: ", err)
+
+	// отправляем ответ клиенту
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(updatedTask); err != nil {
+		fmt.Println("err: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
-	// получаем id из query параметра в URL
-	id := r.URL.Query().Get("id")
-
-	// проверяем был ли вообще передан id в URL
-	if id == "" {
-		msg := "missing id!"
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(msg + "\n"))
-		return
-	}
-
 	// если в хранилище пока не задач, то выводить пока нечего
-	if len(idTasks) == 0 {
+	if len(tasks) == 0 {
 		msg := "No tasks to print yet!"
 		fmt.Println(msg)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(msg + "\n"))
 		return
 	}
-
-	// выводим задачу по id
-	printed := false
-	msg := ""
-	for i := range idTasks {
-		if idTasks[i].ID == id {
-			msg += "Hello, " + idTasks[i].Task
-			printed = true
-			break
-		}
-	}
-
-	// если не найден такой id
-	if !printed {
-		msg := "Task not found!"
-		fmt.Println(msg)
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(msg + "\n"))
-		return
-	}
-
-	fmt.Println(msg)
+	fmt.Println("Task printed")
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(msg + "\n"))
-	if err != nil {
-		fmt.Println("fail to write HTTP response: ", err)
+	// отправляем ответ клиенту
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		fmt.Println("err: ", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
@@ -187,7 +167,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// если в хранилище пока нет задач, то удалять пока нечего
-	if len(idTasks) == 0 {
+	if len(tasks) == 0 {
 		msg := "No tasks to print yet!"
 		fmt.Println(msg)
 		w.WriteHeader(http.StatusNotFound)
@@ -197,9 +177,9 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// удаляем задачу по айди
 	deleted := false
-	for i := range idTasks {
-		if idTasks[i].ID == id {
-			idTasks = append(idTasks[:i], idTasks[i+1:]...)
+	for i := range tasks {
+		if tasks[i].ID == id {
+			tasks = append(tasks[:i], tasks[i+1:]...)
 			deleted = true
 			break
 		}
@@ -214,14 +194,9 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Task deleted successfully!"
+	msg := "Task deleted!"
 	fmt.Println(msg)
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(msg + "\n"))
-	if err != nil {
-		fmt.Println("fail to write HTTP response: ", err)
-		return	
-	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
