@@ -40,6 +40,7 @@ var idCounter int
 var tasks = []TaskStruct{}
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var requestBody RequestBody
 	// парсим json
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -62,7 +63,6 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	// отправляем ответ клиенту
-	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(newTask); err != nil {
 		fmt.Println("err: ", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -71,6 +71,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PatchHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	// получаем id из query параметра в URL
 	id := r.URL.Query().Get("id")
 
@@ -125,7 +126,6 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// отправляем ответ клиенту
-	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(updatedTask); err != nil {
 		fmt.Println("err: ", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -134,6 +134,7 @@ func PatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	// если в хранилище пока не задач, то выводить пока нечего
 	if len(tasks) == 0 {
 		msg := "No tasks to print yet!"
@@ -145,7 +146,6 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Task printed")
 	w.WriteHeader(http.StatusOK)
 	// отправляем ответ клиенту
-	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(tasks); err != nil {
 		fmt.Println("err: ", err)
 		w.WriteHeader(http.StatusInternalServerError)
