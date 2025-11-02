@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // Что сделали:
@@ -15,7 +16,8 @@ import (
 // 5) Реализовали метод Patch - сравнивает айди из url с айди из хранилища с тасками и обновляет таску по этому айди.
 // 6) Реализовали REST-логику с помощью объединения хендлеров в основной. Теперь один путь, разные методы.
 // 7) Реализовали Delete метод
-// 8) отправка сущности клиенту
+// 8) Отправка сущности клиенту
+// 9) Передаем id теперь по REST, то есть как путь, а не query параметр
 
 // структура хранилища тасок
 type TaskStruct struct {
@@ -65,19 +67,8 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func PatchHandler(w http.ResponseWriter, r *http.Request) {
+func PatchHandler(w http.ResponseWriter, r *http.Request, id string) {
 	w.Header().Set("Content-Type", "application/json")
-	// получаем id из query параметра в URL
-	id := r.URL.Query().Get("id")
-
-	// проверяем, а был ли вообще передан id в URL
-	if id == "" {
-		msg := "missing id!"
-		fmt.Println(msg)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(msg + "\n"))
-		return
-	}
 
 	// получаем саму таску из тела запроса (на которую будем менять старую)
 	var request RequestBody
@@ -148,19 +139,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	// получаем id из query параметра в URL
-	id := r.URL.Query().Get("id")
-
-	// проверяем, был ли вообще передан id в URL
-	if id == "" {
-		msg := "missing id!"
-		fmt.Println(msg)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(msg + "\n"))
-		return
-	}
-
+func DeleteHandler(w http.ResponseWriter, r *http.Request, id string) {
 	// если в хранилище пока нет задач, то удалять пока нечего
 	if len(tasks) == 0 {
 		msg := "No tasks to print yet!"
@@ -200,17 +179,35 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 		GetHandler(w, r)
 	case http.MethodPost:
 		PostHandler(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода
+	}
+}
+
+func MainHandlerWithID(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/task/") // оставляем в пути только ID (чтобы к нему обратиться)
+	// проверяем, был ли вообще передан id в URL
+	if id == "" {
+		msg := "missing id!"
+		fmt.Println(msg)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg + "\n"))
+		return
+	}
+
+	switch r.Method {
 	case http.MethodPatch:
-		PatchHandler(w, r)
+		PatchHandler(w,r,id)
 	case http.MethodDelete:
-		DeleteHandler(w, r)
+		DeleteHandler(w,r,id)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed) // ошибка метода
 	}
 }
 
 func main() {
-	http.HandleFunc("/task", MainHandler)
+	http.HandleFunc("/task", MainHandler) // для списка задач (GET, POST)
+	http.HandleFunc("/task/", MainHandlerWithID) // для конкретной задачи (PATCH, DELETE)
 	if err := http.ListenAndServe(":9092", nil); err != nil { // слушаем порт 9092
 		fmt.Println("Ошибка во время работы HTTP сервера: ", err)
 	}
