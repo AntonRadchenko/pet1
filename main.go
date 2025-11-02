@@ -122,13 +122,13 @@ func PatchHandler(w http.ResponseWriter, r *http.Request, id string) {
 func GetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	// если в хранилище пока не задач, то выводить пока нечего
-	if len(tasks) == 0 {
-		msg := "No tasks to print yet!"
-		fmt.Println(msg)
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(msg + "\n"))
-		return
-	}
+	// if len(tasks) == 0 {
+	// 	msg := "No tasks to print yet!"
+	// 	fmt.Println(msg)
+	// 	w.WriteHeader(http.StatusNotFound)
+	// 	w.Write([]byte(msg + "\n"))
+	// 	return
+	// }
 	fmt.Println("Task printed")
 	w.WriteHeader(http.StatusOK)
 	// отправляем ответ клиенту
@@ -185,7 +185,13 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func MainHandlerWithID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/task/") // оставляем в пути только ID (чтобы к нему обратиться)
+	// оставляем в пути только ID (чтобы к нему обратиться)
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 2 || parts[0] != "task" || parts[1] == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return 
+	}
+	id := parts[1]
 	// проверяем, был ли вообще передан id в URL
 	if id == "" {
 		msg := "missing id!"
