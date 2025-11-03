@@ -12,6 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// Что сделали:
+// 1) Установили и запустили PostgreSQL в контейнере
+// 2) создали функцию подключения в бд и подключились к бд через GORM
+// 3) добавили автомиграцию - GORM создал таблицу в бд по структуре TaskStruct
+// 4) переписали CRUD ручки GET и POST (теперь данные берутся из реальной бд, а не из слайса)
+
+// Что Осталось сделать:
+// 1) Переписать PATCH и DELETE ручки
+
 // главный объект GORM, через который идут все запросы в бд
 var db *gorm.DB
 
@@ -108,7 +117,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	// добавляем новую таску в хранилище
 	if err := db.Create(&newTask).Error; err != nil {
 		WriteJsonError(w, http.StatusInternalServerError, "Could not add Task")
-		return 
+		return
 	}
 
 	log.Printf("[POST] Task %s created successfully", newTask.ID)
@@ -154,9 +163,9 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	var tasks []TaskStruct
 
 	// ищем все записи в таблице в бд и заполняем их в tasks
-	if err := db.Find(&tasks).Error; err != nil { 
+	if err := db.Find(&tasks).Error; err != nil {
 		WriteJsonError(w, http.StatusInternalServerError, "Could not get Tasks")
-		return 
+		return
 	}
 	log.Printf("[GET] Tasks printed")
 	WriteJson(w, http.StatusOK, tasks)
