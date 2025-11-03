@@ -68,7 +68,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// проверяем что переданная таска не пустая
 	if strings.TrimSpace(requestBody.Task) == "" {
-		WriteJsonError(w, http.StatusInternalServerError, "task is empty")
+		WriteJsonError(w, http.StatusBadRequest, "task is empty")
 		return
 	}
 
