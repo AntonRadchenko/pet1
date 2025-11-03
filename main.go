@@ -166,7 +166,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 func MainHandlerWithID(w http.ResponseWriter, r *http.Request) {
 	// оставляем в пути только ID (чтобы к нему обратиться)
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) != 2 || parts[0] != "task" || parts[1] == "" {
+	if len(parts) != 2 || parts[0] != "tasks" || parts[1] == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -191,8 +191,8 @@ func MainHandlerWithID(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/task", MainHandler)                     // для списка задач (GET, POST)
-	http.HandleFunc("/task/", MainHandlerWithID)              // для конкретной задачи (PATCH, DELETE)
+	http.HandleFunc("/tasks", MainHandler)                     // для списка задач (GET, POST)
+	http.HandleFunc("/tasks/", MainHandlerWithID)              // для конкретной задачи (PATCH, DELETE)
 	if err := http.ListenAndServe(":9092", nil); err != nil { // слушаем порт 9092
 		fmt.Println("Ошибка во время работы HTTP сервера: ", err)
 	}
