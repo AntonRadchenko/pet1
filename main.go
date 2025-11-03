@@ -7,17 +7,46 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-// Что сделали:
-// 1) универсальная отправка JSON ответа клиенту, вместо текста (в том числе ошибки)
-// 2) логирование ошибок (в терминал рзработчика)
+// главный объект GORM, через который идут все запросы в бд
+var db *gorm.DB
+
+// функция для инициализации подключения и работы с бд
+func initDB() {
+	// источник данных
+	dsn := "host=localhost user=postgres password=yourpassword dbname=postgres port=5432 sslmode=disable"
+	var err error
+
+	// открываем соединение с бд
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Could not connect to Database: %v", err)
+	}
+
+	// автомиграция (в бд автоматически создастся модель (таблица) на основе структуры TaskStruct)
+	if err := db.AutoMigrate(&TaskStruct{}); err != nil {
+		log.Fatalf("Could not migrate: %v", err)
+	}
+}
+
+// Основные методы ORM, c которыми будем работать:
+// Find (найти записи в бд и заполнить переданный срез)
+// Create (записать новый объект в бд)
+// Update (обновить существующую запись в бд)
+// Delete (удалить существующую запись из бд)
 
 // структура хранилища тасок
 type TaskStruct struct {
-	ID   string `json:"id"`
+	ID   string `gorm:"primaryKey" json:"id"`
 	Task string `json:"task"`
 }
+
+// генератор айдишек для тасок
+var idCounter int
 
 // структура тела запроса
 type RequestBody struct {
@@ -29,11 +58,8 @@ type ErrorStruct struct {
 	Error string `json:"error"`
 }
 
-// генератор айдишек для тасок
-var idCounter int
-
-// хранилище тасок (глобальная переменная)
-var tasks = []TaskStruct{}
+// появилась бд => слайс больше не нужен
+// var tasks = []TaskStruct{}
 
 // универсальная отправка JSON ответа клиенту
 func WriteJson(w http.ResponseWriter, status int, v any) {
@@ -80,7 +106,10 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 		Task: requestBody.Task,
 	}
 	// добавляем новую таску в хранилище
-	tasks = append(tasks, newTask)
+	if err := db.Create(&newTask).Error; err != nil {
+		WriteJsonError(w, http.StatusInternalServerError, "Could not add Task")
+		return 
+	}
 
 	log.Printf("[POST] Task %s created successfully", newTask.ID)
 	WriteJson(w, http.StatusCreated, newTask)
@@ -122,6 +151,13 @@ func PatchHandler(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
+	var tasks []TaskStruct
+
+	// ищем все записи в таблице в бд и заполняем их в tasks
+	if err := db.Find(&tasks).Error; err != nil { 
+		WriteJsonError(w, http.StatusInternalServerError, "Could not get Tasks")
+		return 
+	}
 	log.Printf("[GET] Tasks printed")
 	WriteJson(w, http.StatusOK, tasks)
 }
@@ -191,8 +227,8 @@ func MainHandlerWithID(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/tasks", MainHandler)                     // для списка задач (GET, POST)
-	http.HandleFunc("/tasks/", MainHandlerWithID)              // для конкретной задачи (PATCH, DELETE)
+	http.HandleFunc("/tasks", MainHandler)                    // для списка задач (GET, POST)
+	http.HandleFunc("/tasks/", MainHandlerWithID)             // для конкретной задачи (PATCH, DELETE)
 	if err := http.ListenAndServe(":9092", nil); err != nil { // слушаем порт 9092
 		fmt.Println("Ошибка во время работы HTTP сервера: ", err)
 	}
