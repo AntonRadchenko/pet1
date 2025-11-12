@@ -1,5 +1,5 @@
 # Подключение к бд
-DB_DSN := "postgres://postgres:yourpassword@localhost:5432/main?sslmode=disable"
+DB_DSN := "postgres://postgres:yourpassword@localhost:5432/postgres?sslmode=disable"
 
 # общая команда для работы с миграциями 
 MIGRATE := migrate -path ./migrations -database $(DB_DSN)
@@ -19,4 +19,4 @@ migrate-down:
 
 # запуск прилы
 run:
-	go run cmd/app/main.go
+	go run cmd/app/main.go 

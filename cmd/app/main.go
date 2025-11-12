@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"log"
-
 	"github.com/AntonRadchenko/WebPet1/internal/db"
 	"github.com/AntonRadchenko/WebPet1/internal/handlers"
 	"github.com/AntonRadchenko/WebPet1/internal/service"
@@ -14,10 +12,6 @@ import (
 
 func main() {
 	db.InitDB()
-	// автомиграция (в бд автоматически создастся модель (таблица) на основе структуры TaskStruct)
-	if err := db.DB.AutoMigrate(&service.TaskStruct{}); err != nil {
-		log.Fatalf("Could not migrate: %v", err)
-	}
 
 	repo := &service.TaskRepo{}
 	svc := service.NewService(repo)

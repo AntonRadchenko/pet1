@@ -2,7 +2,7 @@ package service
 
 // структура хранилища тасок
 type TaskStruct struct {
-	ID   uint `gorm:"primaryKey;autoIncrement"` // autoIncrement говорит GORM, что ID будет генерироваться автоматически
+	ID   uint `gorm:"primaryKey;autoIncrement"` 
 	Task string `json:"task"`
 }
 
