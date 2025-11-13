@@ -59,7 +59,7 @@ func (h *TaskHandler) PostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	newTask, err := h.service.CreateTask(req.Task)
+	newTask, err := h.service.CreateTask(req.Task, req.IsDone)
 	if err != nil {
 		WriteJsonError(w, http.StatusBadRequest, err.Error())
 		return 
@@ -93,7 +93,7 @@ func (h *TaskHandler) PatchHandler(w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 
-	task, err := h.service.UpdateTask(uint(uid), req.Task)
+	task, err := h.service.UpdateTask(uint(uid), req.Task, req.IsDone)
 	if err != nil {
 		WriteJsonError(w, http.StatusBadRequest, err.Error())
 		return 

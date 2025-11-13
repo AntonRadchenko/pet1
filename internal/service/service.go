@@ -22,11 +22,20 @@ func NewService(r *TaskRepo) *TaskService {
 }
 
 // CreateTask - создает новую задачу (с проверкой что она не пустя)
-func (s *TaskService) CreateTask(text string) (*TaskStruct, error) {
+func (s *TaskService) CreateTask(text string, done *bool) (*TaskStruct, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, errors.New("task is empty")
 	}
-	task := &TaskStruct{Task: text}
+
+	task := &TaskStruct{
+		Task: text, 
+		IsDone: false,
+	}
+
+	if done != nil {
+		task.IsDone = *done
+	}
+
 	if err := s.repo.Create(task); err != nil {
 		return nil, err
 	}
@@ -43,15 +52,18 @@ func (s *TaskService) GetTasks() ([]TaskStruct, error) {
 }
 
 
-func (s *TaskService) UpdateTask(id uint, text string) (*TaskStruct, error) {
+func (s *TaskService) UpdateTask(id uint, text string, done *bool) (*TaskStruct, error) {
 	var task TaskStruct
 	if err := s.repo.GetByID(&task, id); err != nil {
 		return nil, errors.New("task not found") // или просто err
 	}
 
-	task.Task = strings.TrimSpace(text)
-	if task.Task == "" {
-		return nil, errors.New("task is empty")
+	if strings.TrimSpace(text) != "" {
+		task.Task = strings.TrimSpace(text)
+	}
+
+	if done != nil {
+		task.IsDone = *done
 	}
 
 	if err := s.repo.Update(&task); err != nil {
