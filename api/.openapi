@@ -1,0 +1,8 @@
+package: api
+
+generate:
+  strict-server: true # генерит интерфейс ServerInterface
+  std-http-server: true # генерит обвязку под net/http 
+  models: true # генерит структуры Task, CreateTaskRequest (затем и другие)
+
+output: api.gen.go        
