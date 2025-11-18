@@ -24,7 +24,8 @@ func (r *TaskRepo) Create(task *TaskStruct) error {
 func (r *TaskRepo) GetAll(tasks *[]TaskStruct) error {
 	err := db.DB.Find(&tasks).Error
 	if err != nil && strings.Contains(err.Error(), "relation") {
-		*tasks = []TaskStruct{} // при ошибке (при незапущенной бд) возвращаем пустой массив 
+		// если таблицы нет - возвращаем пустой массив []
+		*tasks = []TaskStruct{} 
 		return nil
 	}
 	return err

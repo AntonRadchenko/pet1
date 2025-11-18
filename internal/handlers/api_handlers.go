@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/AntonRadchenko/WebPet1/api"
+	"github.com/AntonRadchenko/WebPet1/openapi"
 	"github.com/AntonRadchenko/WebPet1/internal/service"
 )
 
@@ -34,6 +34,7 @@ func NewApiHandler(s *service.TaskService) *ApiHandler {
 func (h *ApiHandler) PostTasks(ctx context.Context, req api.PostTasksRequestObject) (api.PostTasksResponseObject, error) {
 	body := req.Body
 
+	// получаем модель бд
 	newTask, err := h.service.CreateTask(body.Task, body.IsDone)
 	if err != nil {
 		return nil, err
@@ -45,8 +46,8 @@ func (h *ApiHandler) PostTasks(ctx context.Context, req api.PostTasksRequestObje
 	task := newTask.Task
 	is_done := newTask.IsDone
 
-	// возвращаем OpenAPI ответ - модель API 
-	// Task - модель API, а TaskStruct - это модель бд.        <-- для себя, чтобы не путаться
+	// маппинг в API-модель
+	// api.Task - модель API, а TaskStruct - это модель бд.        <-- для себя, чтобы не путаться
 	response := api.PostTasks201JSONResponse{
 		Id: &id, 
 		Task: &task, 
@@ -57,8 +58,10 @@ func (h *ApiHandler) PostTasks(ctx context.Context, req api.PostTasksRequestObje
 }
 
 func (h *ApiHandler) GetTasks(ctx context.Context, req api.GetTasksRequestObject) (api.GetTasksResponseObject, error) {
-	var response api.GetTasks200JSONResponse
+	// инициализируем слайс данным способом, чтобы при ошибке вернулся пустой массив, вместо null
+	response := make(api.GetTasks200JSONResponse, 0) 
 	
+	// получаем модель бд
 	tasks, err := h.service.GetTasks()
 	if err != nil {
 		return nil, err
@@ -69,6 +72,7 @@ func (h *ApiHandler) GetTasks(ctx context.Context, req api.GetTasksRequestObject
 		task := t.Task
 		is_done := t.IsDone
 
+		// маппинг в API-модель
 		response = append(response, api.Task{
 			Id: &id,
 			Task: &task,

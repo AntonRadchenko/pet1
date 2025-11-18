@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/AntonRadchenko/WebPet1/api"
+	"github.com/AntonRadchenko/WebPet1/openapi"
 	"github.com/AntonRadchenko/WebPet1/internal/db"
 	"github.com/AntonRadchenko/WebPet1/internal/handlers"
 	"github.com/AntonRadchenko/WebPet1/internal/service"
