@@ -75,7 +75,7 @@ func (s *TaskService) UpdateTask(id uint, text string, done *bool) (*TaskStruct,
 func (s *TaskService) DeleteTask(id uint) error {
 	var task TaskStruct
 	if err := s.repo.GetByID(&task, id); err != nil {
-		return errors.New("task not fount")
+		return errors.New("task not found")
 	}
 	return s.repo.Delete(&task, id)
 }

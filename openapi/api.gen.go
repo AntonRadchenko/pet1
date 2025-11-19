@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/oapi-codegen/runtime"
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
@@ -30,6 +31,9 @@ type Task struct {
 // PostTasksJSONRequestBody defines body for PostTasks for application/json ContentType.
 type PostTasksJSONRequestBody = CreateTaskRequest
 
+// PatchTasksIdJSONRequestBody defines body for PatchTasksId for application/json ContentType.
+type PatchTasksIdJSONRequestBody = CreateTaskRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get all tasks
@@ -38,6 +42,12 @@ type ServerInterface interface {
 	// Create a new task
 	// (POST /tasks)
 	PostTasks(w http.ResponseWriter, r *http.Request)
+	// Delete a task by ID
+	// (DELETE /tasks/{id})
+	DeleteTasksId(w http.ResponseWriter, r *http.Request, id uint)
+	// Update a task
+	// (PATCH /tasks/{id})
+	PatchTasksId(w http.ResponseWriter, r *http.Request, id uint)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -68,6 +78,56 @@ func (siw *ServerInterfaceWrapper) PostTasks(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostTasks(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTasksId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTasksId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTasksId(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchTasksId operation middleware
+func (siw *ServerInterfaceWrapper) PatchTasksId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchTasksId(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -199,11 +259,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc("GET "+options.BaseURL+"/tasks", wrapper.GetTasks)
 	m.HandleFunc("POST "+options.BaseURL+"/tasks", wrapper.PostTasks)
+	m.HandleFunc("DELETE "+options.BaseURL+"/tasks/{id}", wrapper.DeleteTasksId)
+	m.HandleFunc("PATCH "+options.BaseURL+"/tasks/{id}", wrapper.PatchTasksId)
 
 	return m
 }
 
-type GetTasksRequestObject struct {}
+type GetTasksRequestObject struct {
+}
 
 type GetTasksResponseObject interface {
 	VisitGetTasksResponse(w http.ResponseWriter) error
@@ -235,6 +298,48 @@ func (response PostTasks201JSONResponse) VisitPostTasksResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeleteTasksIdRequestObject struct {
+	Id uint `json:"id"`
+}
+
+type DeleteTasksIdResponseObject interface {
+	VisitDeleteTasksIdResponse(w http.ResponseWriter) error
+}
+
+type DeleteTasksId204Response struct {
+}
+
+func (response DeleteTasksId204Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTasksId404Response struct {
+}
+
+func (response DeleteTasksId404Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PatchTasksIdRequestObject struct {
+	Id   uint `json:"id"`
+	Body *PatchTasksIdJSONRequestBody
+}
+
+type PatchTasksIdResponseObject interface {
+	VisitPatchTasksIdResponse(w http.ResponseWriter) error
+}
+
+type PatchTasksId200JSONResponse Task
+
+func (response PatchTasksId200JSONResponse) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get all tasks
@@ -243,6 +348,12 @@ type StrictServerInterface interface {
 	// Create a new task
 	// (POST /tasks)
 	PostTasks(ctx context.Context, request PostTasksRequestObject) (PostTasksResponseObject, error)
+	// Delete a task by ID
+	// (DELETE /tasks/{id})
+	DeleteTasksId(ctx context.Context, request DeleteTasksIdRequestObject) (DeleteTasksIdResponseObject, error)
+	// Update a task
+	// (PATCH /tasks/{id})
+	PatchTasksId(ctx context.Context, request PatchTasksIdRequestObject) (PatchTasksIdResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -322,6 +433,65 @@ func (sh *strictHandler) PostTasks(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PostTasksResponseObject); ok {
 		if err := validResponse.VisitPostTasksResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteTasksId operation middleware
+func (sh *strictHandler) DeleteTasksId(w http.ResponseWriter, r *http.Request, id uint) {
+	var request DeleteTasksIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTasksId(ctx, request.(DeleteTasksIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTasksId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteTasksIdResponseObject); ok {
+		if err := validResponse.VisitDeleteTasksIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchTasksId operation middleware
+func (sh *strictHandler) PatchTasksId(w http.ResponseWriter, r *http.Request, id uint) {
+	var request PatchTasksIdRequestObject
+
+	request.Id = id
+
+	var body PatchTasksIdJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchTasksId(ctx, request.(PatchTasksIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchTasksId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchTasksIdResponseObject); ok {
+		if err := validResponse.VisitPatchTasksIdResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

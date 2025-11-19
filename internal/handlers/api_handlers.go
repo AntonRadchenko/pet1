@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/AntonRadchenko/WebPet1/openapi"
 	"github.com/AntonRadchenko/WebPet1/internal/service"
+	"github.com/AntonRadchenko/WebPet1/openapi"
 )
 
 // ApiHandler — слой HTTP согласно OpenAPI.
@@ -31,7 +31,7 @@ func NewApiHandler(s *service.TaskService) *ApiHandler {
 	return &ApiHandler{service: s}
 }
 
-func (h *ApiHandler) PostTasks(ctx context.Context, req api.PostTasksRequestObject) (api.PostTasksResponseObject, error) {
+func (h *ApiHandler) PostTasks(_ context.Context, req api.PostTasksRequestObject) (api.PostTasksResponseObject, error) {
 	body := req.Body
 
 	// получаем модель бд
@@ -57,7 +57,7 @@ func (h *ApiHandler) PostTasks(ctx context.Context, req api.PostTasksRequestObje
 
 }
 
-func (h *ApiHandler) GetTasks(ctx context.Context, req api.GetTasksRequestObject) (api.GetTasksResponseObject, error) {
+func (h *ApiHandler) GetTasks(_ context.Context, _ api.GetTasksRequestObject) (api.GetTasksResponseObject, error) {
 	// инициализируем слайс данным способом, чтобы при ошибке вернулся пустой массив, вместо null
 	response := make(api.GetTasks200JSONResponse, 0) 
 	
@@ -82,4 +82,40 @@ func (h *ApiHandler) GetTasks(ctx context.Context, req api.GetTasksRequestObject
 	}
 	log.Printf("[GET] Returned %d tasks", len(tasks))
 	return response, nil
+}
+
+func (h *ApiHandler) PatchTasksId(_ context.Context, req api.PatchTasksIdRequestObject) (api.PatchTasksIdResponseObject, error) {
+	urlID := req.Id
+	body := req.Body
+
+	updatedTask, err := h.service.UpdateTask(urlID, body.Task, body.IsDone)
+	if err != nil {
+		return nil, err 
+	}
+
+	log.Printf("[PATCH] Task %d updated successfully", urlID)
+
+	id := updatedTask.ID
+	task := updatedTask.Task
+	is_done := updatedTask.IsDone
+
+	// маппинг в API-модель
+	response := api.PatchTasksId200JSONResponse{
+		Id: &id,
+		Task: &task,
+		IsDone: &is_done,
+	}
+	return response, nil
+}
+
+func (h *ApiHandler) DeleteTasksId(_ context.Context, req api.DeleteTasksIdRequestObject) (api.DeleteTasksIdResponseObject, error) {
+	urlID := req.Id
+
+	if err := h.service.DeleteTask(urlID); err != nil {
+		return nil, err
+	}
+
+	log.Printf("[DELETE] Task %d deleted successfully", urlID)
+
+	return api.DeleteTasksId204Response{}, nil
 }
