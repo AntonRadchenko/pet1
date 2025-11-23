@@ -48,4 +48,3 @@ func (r *TaskRepo) Delete(task *TaskStruct, id uint) error {
 	task.DeletedAt = &now
 	return db.DB.Delete(&task, id).Error
 }
-
