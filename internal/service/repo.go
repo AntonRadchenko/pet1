@@ -16,8 +16,22 @@ import (
 type TaskRepo struct{}
 
 // Create - добавляет новую задачу в таблицу
-func (r *TaskRepo) Create(task *TaskStruct) error {
-	return db.DB.Create(task).Error
+func (r *TaskRepo) Create(text string, done *bool) (*TaskStruct, error) {
+	// создаем сущность 
+	task := &TaskStruct{
+		Task: text,
+		IsDone: *done,
+	}
+
+	if done != nil { // если done не пустой, то есть был передан в бади
+		task.IsDone = *done // то обновляем его по указателю
+	}
+
+	err := db.DB.Create(task).Error
+	if err != nil {
+		return nil, err
+	}
+	return task, err // передаем объект задачи обратно в сервис
 }
 
 // GetAll - возвращает все задачи из таблицы

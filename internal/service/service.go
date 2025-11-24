@@ -12,12 +12,13 @@ import (
 // то есть решается, что делать дальше
 // этот слой не знает, как работает база — он использует TaskRepo для доступа к данным
 
+
 type TaskService struct {
-	repo *TaskRepo
+	repo TaskRepoInterface // используем интерфейс
 }
  
 // конструктор NewService - связывает сервис и репозиторий
-func NewService(r *TaskRepo) *TaskService {
+func NewService(r TaskRepoInterface) *TaskService {
 	return &TaskService{repo: r}
 }
 
@@ -27,19 +28,11 @@ func (s *TaskService) CreateTask(text string, done *bool) (*TaskStruct, error) {
 		return nil, errors.New("task is empty")
 	}
 
-	task := &TaskStruct{
-		Task: text, 
-		IsDone: false,
-	}
-
-	if done != nil {
-		task.IsDone = *done
-	}
-
-	if err := s.repo.Create(task); err != nil {
+	task, err := s.repo.Create(text, done) // передаем данные в репозиторий
+	if err != nil {
 		return nil, err
 	}
-	return task, nil
+	return task, nil // передаем объект задачи (который вернул репозиторий) обратно в хендлер 
 }
 
 // GetTasks - возвращает все задачи

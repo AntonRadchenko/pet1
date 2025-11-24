@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TaskCreateTask(t *testing.T) {
+func TestCreateTask(t *testing.T) {
 	// создаем слайс структур, в каждой из которых описан тестовый случай
 	tests := []struct {
 		name      string                                   // имя теста
@@ -21,7 +21,7 @@ func TaskCreateTask(t *testing.T) {
 			mockSetup: func(m *MockTaskRepo, input *TaskStruct) {
 				// настраиваем мок, чтобы при вызове CreateTask с параметром input
 				// он возвращал заранее заданные данные (например, объект или ошибку).
-				m.On("CreateTask", input).Return(input, nil)
+				m.On("Create", input).Return(input, nil)
 			},
 			wantErr: false,
 		},
@@ -29,7 +29,7 @@ func TaskCreateTask(t *testing.T) {
 			name:  "ошибка при создании",
 			input: &TaskStruct{Task: "Bad task", IsDone: false},
 			mockSetup: func(m *MockTaskRepo, input *TaskStruct) {
-				m.On("CreateTask", input).Return(&TaskStruct{}, errors.New("db error"))
+				m.On("Create", input).Return(&TaskStruct{}, errors.New("db error"))
 			},
 			wantErr: true,
 		},
@@ -49,6 +49,21 @@ func TaskCreateTask(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.input, result)
 			}
+
+			mockRepo.AssertExpectations(t) // проверяем что все ожидаемые вызовы методов мока были выполнены
 		})
+	}
+}
+
+func TestGetTasks(* *testing.T) {
+	tests := []struct {
+		name string
+		mockSetup func(m *MockTaskRepo)
+		wantErr bool
+		wantTasks []TaskStruc
+	}{
+		{
+			// понять в каком виде должны быть поля в примерах тестов
+		}
 	}
 }

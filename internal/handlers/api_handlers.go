@@ -34,8 +34,8 @@ func NewApiHandler(s *service.TaskService) *ApiHandler {
 func (h *ApiHandler) PostTasks(_ context.Context, req api.PostTasksRequestObject) (api.PostTasksResponseObject, error) {
 	body := req.Body
 
-	// получаем модель бд
-	newTask, err := h.service.CreateTask(body.Task, body.IsDone)
+	// передаем данные с тела запроса в сервис (который уже передаст их в репозиторий)
+	newTask, err := h.service.CreateTask(body.Task, body.IsDone) // передаю таску и флаг из тела запроса
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +53,7 @@ func (h *ApiHandler) PostTasks(_ context.Context, req api.PostTasksRequestObject
 		Task: &task, 
 		IsDone: &is_done,
 	}
-	return response, nil
-
+	return response, nil // отправляем клиенту ответ 
 }
 
 func (h *ApiHandler) GetTasks(_ context.Context, _ api.GetTasksRequestObject) (api.GetTasksResponseObject, error) {

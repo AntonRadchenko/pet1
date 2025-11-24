@@ -6,7 +6,7 @@ package service
 // то есть TaskRepoInterface описывает контракт, 
 // который должен быть реализован любым объектом, претендующим на роль репозитория
 type TaskRepoInterface interface {
-	Create(task *TaskStruct) error
+	Create(text string, done *bool) (*TaskStruct, error)
 	GetAll(tasks *[]TaskStruct) error
 	GetByID(task *TaskStruct, id uint) error
 	Update(task *TaskStruct) error
