@@ -9,9 +9,13 @@ type MockTaskRepo struct {
 	mock.Mock
 }
 
-func (m *MockTaskRepo) Create(task *TaskStruct) error {
+func (m *MockTaskRepo) Create(task *TaskStruct) (*TaskStruct, error) {
 	args := m.Called(task) // Called() проверяет что метод вызван с правильными параметрами
-	return args.Error(0)
+	var t *TaskStruct
+	if res := args.Get(0); res != nil {
+		t = res.(*TaskStruct)
+	}
+	return t, args.Error(1)
 }
 
 func (m *MockTaskRepo) GetAll(tasks *[]TaskStruct) error {

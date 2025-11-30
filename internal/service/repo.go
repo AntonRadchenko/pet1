@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/AntonRadchenko/WebPet1/internal/db"
+	"gorm.io/gorm"
 )
 
 // 2. repo-слой (руки)
@@ -13,52 +14,76 @@ import (
 // здесь хранятся методы, которые напрямую обращаются к бд
 // этот слой ничего не думает, не валидирует — просто делает CRUD-запросы
 
+// интерфейс для репозитория задач (служит связующим звеном между двумя структурами:
+// реальной структурой TaskRepo и мок-структурой MockTaskRepository);
+// То есть TaskRepoInterface описывает контракт,
+// который должен быть реализован любым объектом, претендующим на роль репозитория
+type TaskRepoInterface interface {
+	Create(task *TaskStruct) (*TaskStruct, error) // исправлена пока только сигнатура этого метода
+	GetAll() ([]TaskStruct, error)
+	GetByID(id uint) (TaskStruct, error)
+	Update(task *TaskStruct) (*TaskStruct, error)
+	Delete(task *TaskStruct, id uint) error
+}
+
 type TaskRepo struct{}
 
 // Create - добавляет новую задачу в таблицу
-func (r *TaskRepo) Create(text string, done *bool) (*TaskStruct, error) {
-	// создаем сущность 
-	task := &TaskStruct{
-		Task: text,
-		IsDone: *done,
-	}
-
-	if done != nil { // если done не пустой, то есть был передан в бади
-		task.IsDone = *done // то обновляем его по указателю
-	}
-
-	err := db.DB.Create(task).Error
+func (r *TaskRepo) Create(task *TaskStruct) (*TaskStruct, error) {
+	err := db.DB.Create(task).Error // передаем указатель в ORM
 	if err != nil {
 		return nil, err
 	}
-	return task, err // передаем объект задачи обратно в сервис
+	return task, nil // передаем объект задачи обратно в сервис
 }
 
 // GetAll - возвращает все задачи из таблицы
-func (r *TaskRepo) GetAll(tasks *[]TaskStruct) error {
+func (r *TaskRepo) GetAll() ([]TaskStruct, error) {
+	var tasks []TaskStruct
+
 	err := db.DB.Find(&tasks).Error
-	if err != nil && strings.Contains(err.Error(), "relation") {
+	if err != nil  {
+		if strings.Contains(err.Error(), "relation") {
 		// если таблицы нет - возвращаем пустой массив []
-		*tasks = []TaskStruct{} 
-		return nil
+		return []TaskStruct{}, nil // ТУТ ВОЗМОЖНА ОШИБКА изза tasks вместо []TaskStruct{}	!!!!!!!!!!!!!!!!!!!!!!!!!!
+		}
+		// возвращаем ошибку, если эта ошибка не изза отсутствия таблицы
+		return nil, err
 	}
-	return err
+	return tasks, nil
 }
 
 // GetByID - возвращает задачу по ID
-func (r *TaskRepo) GetByID(task *TaskStruct, id uint) error {
-	return db.DB.First(&task, "id = ?", id).Error
+func (r *TaskRepo) GetByID(id uint) (TaskStruct, error) {
+	var task TaskStruct
+	err := db.DB.First(&task, "id = ?", id).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// если задачи нет,
+			return TaskStruct{}, nil
+		}
+		return task, err 
+	}
+	return task, nil
 }
 
 // Update - обновляет задачу (текст задачи)
-func (r *TaskRepo) Update(task *TaskStruct) error {
+func (r *TaskRepo) Update(task *TaskStruct) (*TaskStruct, error) {
 	task.UpdatedAt = time.Now()
-	return db.DB.Save(&task).Error
+	err := db.DB.Save(&task).Error
+	if err != nil {
+		return nil, err
+	}
+	return task, nil
 }
 
 // Delete - удаляет задачу по ID
 func (r *TaskRepo) Delete(task *TaskStruct, id uint) error {
 	now := time.Now()
 	task.DeletedAt = &now
-	return db.DB.Delete(&task, id).Error
+	err := db.DB.Delete(task).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

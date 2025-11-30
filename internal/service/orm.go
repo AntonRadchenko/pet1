@@ -12,12 +12,6 @@ type TaskStruct struct {
 	DeletedAt *time.Time `json:"deleted_at"`
 }
 
-// структура тела запроса
-// type RequestBody struct {
-// 	Task string `json:"task"`
-// 	IsDone *bool `json:"is_done"`
-// }
-
 // единый формат ошибок
 type ErrorStruct struct {
 	Error string `json:"error"`

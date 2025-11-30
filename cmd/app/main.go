@@ -22,13 +22,13 @@ func main() {
 	apiHandler := handlers.NewApiHandler(svc)
 
 	// оборачиваем API-хендлер в strict-server
-	strictHandler := api.NewStrictHandler(apiHandler, nil)
+	strictHandler := openapi.NewStrictHandler(apiHandler, nil)
 
 	// создаём наш router
 	mux := http.NewServeMux()
 
 	// регистрируем OpenAPI маршруты в mux
-	api.HandlerFromMux(strictHandler, mux)
+	openapi.HandlerFromMux(strictHandler, mux)
 
 	// запускаем сервер
 	log.Println("Server is running on :9092")

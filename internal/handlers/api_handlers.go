@@ -31,34 +31,30 @@ func NewApiHandler(s *service.TaskService) *ApiHandler {
 	return &ApiHandler{service: s}
 }
 
-func (h *ApiHandler) PostTasks(_ context.Context, req api.PostTasksRequestObject) (api.PostTasksResponseObject, error) {
+func (h *ApiHandler) PostTasks(_ context.Context, req openapi.PostTasksRequestObject) (openapi.PostTasksResponseObject, error) {
 	body := req.Body
 
 	// передаем данные с тела запроса в сервис (который уже передаст их в репозиторий)
-	newTask, err := h.service.CreateTask(body.Task, body.IsDone) // передаю таску и флаг из тела запроса
+	newTask, err := h.service.CreateTask(*body) // передаю таску и флаг из тела запроса
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("[POST] Task %d created successfully", newTask.ID)
 
-	id := newTask.ID
-	task := newTask.Task
-	is_done := newTask.IsDone
-
 	// маппинг в API-модель
-	// api.Task - модель API, а TaskStruct - это модель бд.        <-- для себя, чтобы не путаться
-	response := api.PostTasks201JSONResponse{
-		Id: &id, 
-		Task: &task, 
-		IsDone: &is_done,
+	// openapi.Task - модель API, а service.TaskStruct - это модель бд.        <-- для себя, чтобы не путаться
+	response := openapi.PostTasks201JSONResponse{
+		Id: &newTask.ID, 
+		Task: &newTask.Task, 
+		IsDone: &newTask.IsDone,
 	}
 	return response, nil // отправляем клиенту ответ 
 }
 
-func (h *ApiHandler) GetTasks(_ context.Context, _ api.GetTasksRequestObject) (api.GetTasksResponseObject, error) {
+func (h *ApiHandler) GetTasks(_ context.Context, _ openapi.GetTasksRequestObject) (openapi.GetTasksResponseObject, error) {
 	// инициализируем слайс данным способом, чтобы при ошибке вернулся пустой массив, вместо null
-	response := make(api.GetTasks200JSONResponse, 0) 
+	response := make(openapi.GetTasks200JSONResponse, 0) 
 	
 	// получаем модель бд
 	tasks, err := h.service.GetTasks()
@@ -67,15 +63,11 @@ func (h *ApiHandler) GetTasks(_ context.Context, _ api.GetTasksRequestObject) (a
 	}
 
 	for _, t := range tasks {
-		id := t.ID
-		task := t.Task
-		is_done := t.IsDone
-
 		// маппинг в API-модель
-		response = append(response, api.Task{
-			Id: &id,
-			Task: &task,
-			IsDone: &is_done,
+		response = append(response, openapi.Task{
+			Id: &t.ID,
+			Task: &t.Task,
+			IsDone: &t.IsDone,
 		})
 
 	}
@@ -83,31 +75,27 @@ func (h *ApiHandler) GetTasks(_ context.Context, _ api.GetTasksRequestObject) (a
 	return response, nil
 }
 
-func (h *ApiHandler) PatchTasksId(_ context.Context, req api.PatchTasksIdRequestObject) (api.PatchTasksIdResponseObject, error) {
+func (h *ApiHandler) PatchTasksId(_ context.Context, req openapi.PatchTasksIdRequestObject) (openapi.PatchTasksIdResponseObject, error) {
 	urlID := req.Id
 	body := req.Body
 
-	updatedTask, err := h.service.UpdateTask(urlID, body.Task, body.IsDone)
+	updatedTask, err := h.service.UpdateTask(urlID, *body)
 	if err != nil {
 		return nil, err 
 	}
 
 	log.Printf("[PATCH] Task %d updated successfully", urlID)
 
-	id := updatedTask.ID
-	task := updatedTask.Task
-	is_done := updatedTask.IsDone
-
 	// маппинг в API-модель
-	response := api.PatchTasksId200JSONResponse{
-		Id: &id,
-		Task: &task,
-		IsDone: &is_done,
+	response := openapi.PatchTasksId200JSONResponse{
+		Id: &updatedTask.ID,
+		Task: &updatedTask.Task,
+		IsDone: &updatedTask.IsDone,
 	}
 	return response, nil
 }
 
-func (h *ApiHandler) DeleteTasksId(_ context.Context, req api.DeleteTasksIdRequestObject) (api.DeleteTasksIdResponseObject, error) {
+func (h *ApiHandler) DeleteTasksId(_ context.Context, req openapi.DeleteTasksIdRequestObject) (openapi.DeleteTasksIdResponseObject, error) {
 	urlID := req.Id
 
 	if err := h.service.DeleteTask(urlID); err != nil {
@@ -116,5 +104,5 @@ func (h *ApiHandler) DeleteTasksId(_ context.Context, req api.DeleteTasksIdReque
 
 	log.Printf("[DELETE] Task %d deleted successfully", urlID)
 
-	return api.DeleteTasksId204Response{}, nil
+	return openapi.DeleteTasksId204Response{}, nil
 }
