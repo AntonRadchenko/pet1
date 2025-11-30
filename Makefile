@@ -27,3 +27,5 @@ gen:
 lint:
 	golangci-lint run -v --color=auto 
 
+test:
+	go test ./... -v

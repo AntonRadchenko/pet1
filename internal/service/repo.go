@@ -45,7 +45,7 @@ func (r *TaskRepo) GetAll() ([]TaskStruct, error) {
 	if err != nil  {
 		if strings.Contains(err.Error(), "relation") {
 		// если таблицы нет - возвращаем пустой массив []
-		return []TaskStruct{}, nil // ТУТ ВОЗМОЖНА ОШИБКА изза tasks вместо []TaskStruct{}	!!!!!!!!!!!!!!!!!!!!!!!!!!
+		return []TaskStruct{}, nil 
 		}
 		// возвращаем ошибку, если эта ошибка не изза отсутствия таблицы
 		return nil, err

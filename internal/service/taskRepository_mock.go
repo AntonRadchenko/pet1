@@ -18,22 +18,34 @@ func (m *MockTaskRepo) Create(task *TaskStruct) (*TaskStruct, error) {
 	return t, args.Error(1)
 }
 
-func (m *MockTaskRepo) GetAll(tasks *[]TaskStruct) error {
-	args := m.Called()
-	return args.Error(0)
+func (m *MockTaskRepo) GetAll() ([]TaskStruct, error) {
+	args := m.Called() // Проверяем, что метод вызван с правильным параметром
+	var tasks []TaskStruct
+	if res := args.Get(0); res != nil {
+		tasks = res.([]TaskStruct)
+	}
+	return tasks, args.Error(0)
 }
 
-func (m *MockTaskRepo) GetByID(task *TaskStruct, id uint) error {
-	args := m.Called(task, id)
-	return args.Error(0)
+func (m *MockTaskRepo) GetByID(id uint) (TaskStruct, error) {
+    args := m.Called(id) // Проверяем, что метод вызван с правильным параметром
+    var task TaskStruct
+    if res := args.Get(0); res != nil {
+        task = res.(TaskStruct)
+    }
+    return task, args.Error(1) 
 }
 
-func (m *MockTaskRepo) Update(task *TaskStruct) error {
-	args := m.Called(task)
-	return args.Error(0)
+func (m *MockTaskRepo) Update(task *TaskStruct) (*TaskStruct, error) {
+    args := m.Called(task) // Проверяем, что метод вызван с правильным параметром
+    var updatedTask *TaskStruct
+    if res := args.Get(0); res != nil {
+        updatedTask = res.(*TaskStruct)
+    }
+    return updatedTask, args.Error(1) 
 }
 
 func (m *MockTaskRepo) Delete(task *TaskStruct, id uint) error {
-	args := m.Called(task, id)
-	return args.Error(0)
+    args := m.Called(task, id) // Проверяем, что метод бы9л вызван с правильными параметрами
+    return args.Error(0)
 }
