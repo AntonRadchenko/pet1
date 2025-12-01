@@ -24,7 +24,7 @@ func (m *MockTaskRepo) GetAll() ([]TaskStruct, error) {
 	if res := args.Get(0); res != nil {
 		tasks = res.([]TaskStruct)
 	}
-	return tasks, args.Error(0)
+	return tasks, args.Error(1)
 }
 
 func (m *MockTaskRepo) GetByID(id uint) (TaskStruct, error) {

@@ -57,7 +57,7 @@ func (s *TaskService) CreateTask(taskRequest openapi.PostTasksJSONRequestBody) (
 
 // GetTasks - возвращает все задачи
 func (s *TaskService) GetTasks() ([]TaskStruct, error) {
-	tasks, err := s.repo.GetAll(); 
+	tasks, err := s.repo.GetAll()
 	if err != nil {
 		return nil, err
 	}
@@ -102,3 +102,4 @@ func (s *TaskService) DeleteTask(id uint) error {
 	}
 	return nil
 }
+
