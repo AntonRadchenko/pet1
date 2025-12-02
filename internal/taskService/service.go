@@ -96,7 +96,7 @@ func (s *TaskService) DeleteTask(id uint) error {
 		return errors.New("task not found")
 	}
 	// удаляем задачу
-	err = s.repo.Delete(&task, id)
+	err = s.repo.Delete(&task)
 	if err != nil {
 		return err
 	}

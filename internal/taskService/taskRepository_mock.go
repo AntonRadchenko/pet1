@@ -45,7 +45,7 @@ func (m *MockTaskRepo) Update(task *TaskStruct) (*TaskStruct, error) {
     return updatedTask, args.Error(1) 
 }
 
-func (m *MockTaskRepo) Delete(task *TaskStruct, id uint) error {
-    args := m.Called(task, id) // Проверяем, что метод бы9л вызван с правильными параметрами
+func (m *MockTaskRepo) Delete(task *TaskStruct) error {
+    args := m.Called(task) // Проверяем, что метод бы9л вызван с правильными параметрами
     return args.Error(0)
 }

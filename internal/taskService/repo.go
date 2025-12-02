@@ -23,7 +23,7 @@ type TaskRepoInterface interface {
 	GetAll() ([]TaskStruct, error)
 	GetByID(id uint) (TaskStruct, error)
 	Update(task *TaskStruct) (*TaskStruct, error)
-	Delete(task *TaskStruct, id uint) error
+	Delete(task *TaskStruct) error
 }
 
 type TaskRepo struct{}
@@ -78,7 +78,7 @@ func (r *TaskRepo) Update(task *TaskStruct) (*TaskStruct, error) {
 }
 
 // Delete - удаляет задачу по ID
-func (r *TaskRepo) Delete(task *TaskStruct, id uint) error {
+func (r *TaskRepo) Delete(task *TaskStruct) error {
 	now := time.Now()
 	task.DeletedAt = &now
 	err := db.DB.Delete(task).Error

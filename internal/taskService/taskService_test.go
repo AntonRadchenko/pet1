@@ -271,7 +271,7 @@ func TestDeleteTask(t *testing.T) {
 					IsDone: false,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
-				m.On("Delete", &existingTask, id).Return(nil)
+				m.On("Delete", &existingTask).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -295,7 +295,7 @@ func TestDeleteTask(t *testing.T) {
                 }		
 				m.On("GetByID", id).Return(existingTask, nil)
 				// ошибка возникает при удалении из бд		
-				m.On("Delete", &existingTask, id).Return(errors.New("db error"))
+				m.On("Delete", &existingTask).Return(errors.New("db error"))
 			},
 			wantErr: true,
 		},
