@@ -7,7 +7,7 @@ import (
 	"github.com/AntonRadchenko/WebPet1/openapi"
 	"github.com/AntonRadchenko/WebPet1/internal/db"
 	"github.com/AntonRadchenko/WebPet1/internal/handlers"
-	"github.com/AntonRadchenko/WebPet1/internal/service"
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 )
 
 // 5. верхний слой (все связывается вместе)
@@ -17,8 +17,8 @@ func main() {
 	db.InitDB()
 
 	// собираем слои: repo -> service -> api handler
-	repo := &service.TaskRepo{}
-	svc := service.NewService(repo)
+	repo := &taskService.TaskRepo{}
+	svc := taskService.NewService(repo)
 	apiHandler := handlers.NewApiHandler(svc)
 
 	// оборачиваем API-хендлер в strict-server

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/AntonRadchenko/WebPet1/internal/service"
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 	"github.com/AntonRadchenko/WebPet1/openapi"
 )
 
@@ -23,11 +23,11 @@ import (
 //   • НЕ управляет роутингом
 
 type ApiHandler struct {
-	service *service.TaskService
+	service *taskService.TaskService
 }
 
 // конструктор NewApiHandler - связывает OpenApi-слой и сервис
-func NewApiHandler(s *service.TaskService) *ApiHandler {
+func NewApiHandler(s *taskService.TaskService) *ApiHandler {
 	return &ApiHandler{service: s}
 }
 
