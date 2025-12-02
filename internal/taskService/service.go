@@ -66,7 +66,7 @@ func (s *TaskService) GetTasks() ([]TaskStruct, error) {
 
 func (s *TaskService) UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRequestBody) (*TaskStruct, error) {
 	// проверка на пустой тип задачи
-    if strings.TrimSpace(taskRequest.Task) == "" {
+    if strings.TrimSpace(*taskRequest.Task) == "" {
         return nil, errors.New("task is empty") // Если задача пустая, возвращаем ошибку
     }
 
@@ -76,7 +76,7 @@ func (s *TaskService) UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRe
 	}
 
 	// обновляем поля задачи
-	task.Task = taskRequest.Task
+	
 	if taskRequest.IsDone != nil {
 		task.IsDone = *taskRequest.IsDone // обновляем IsDone если он был передан для обновления
 	}

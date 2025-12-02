@@ -230,7 +230,7 @@ func TestUpdateTask(t *testing.T) {
             service := NewService(mockRepo)
             
             apiRequest := openapi.PatchTasksIdJSONRequestBody{
-                Task: tt.input.Task,
+                Task: &tt.input.Task,
             }
             
 			if tt.name == "успешное обновление задачи" || tt.name == "ошибка при обновлении в БД" {

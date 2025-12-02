@@ -22,7 +22,7 @@ run:
 	go run cmd/app/main.go 
 
 gen:
-	oapi-codegen -config openapi/.openapi -include-tags tasks -package tasks openapi/openapi.yaml > ./internal/web/tasks/api.gen.go
+	cd openapi && oapi-codegen -config .openapi -include-tags tasks,users -package openapi openapi.yaml > api.gen.go
 
 lint:
 	golangci-lint run -v --color=auto 
