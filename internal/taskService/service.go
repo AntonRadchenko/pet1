@@ -7,6 +7,13 @@ import (
 	openapi "github.com/AntonRadchenko/WebPet1/openapi"
 )
 
+// type TaskServiceInterface interface {
+// 	CreateTask(taskRequest openapi.PostTasksJSONRequestBody) (*TaskStruct, error)
+// 	GetTasks() ([]TaskStruct, error)
+// 	UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRequestBody) (*TaskStruct, error)
+// 	DeleteTask(id uint) error
+// }
+
 // 3. service-слой (мозг)
 
 // TaskService — слой бизнес-логики (есть ссылка на TaskRepo) --
@@ -14,19 +21,12 @@ import (
 // то есть решается, что делать дальше
 // этот слой не знает, как работает база — он использует TaskRepo для доступа к данным
 
-type TaskServiceInterface interface {
-	CreateTask(taskRequest openapi.PostTasksJSONRequestBody) (*TaskStruct, error)
-	GetTasks() ([]TaskStruct, error)
-	UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRequestBody) (*TaskStruct, error)
-	DeleteTask(id uint) error
-}
-
 type TaskService struct {
 	repo TaskRepoInterface // используем интерфейс
 }
-	
-// конструктор NewService - связывает сервис и репозиторий
-func NewService(r TaskRepoInterface) *TaskService {
+
+// конструктор NewTaskService - связывает сервис и репозиторий
+func NewTaskService(r TaskRepoInterface) *TaskService {
 	return &TaskService{repo: r}
 }
 
@@ -44,7 +44,7 @@ func (s *TaskService) CreateTask(taskRequest openapi.PostTasksJSONRequestBody) (
 	}
 
 	task := &TaskStruct{
-		Task: taskRequest.Task,
+		Task:   taskRequest.Task,
 		IsDone: isDone,
 	}
 
@@ -52,7 +52,7 @@ func (s *TaskService) CreateTask(taskRequest openapi.PostTasksJSONRequestBody) (
 	if err != nil {
 		return nil, err
 	}
-	return createdTask, nil // передаем объект задачи (который вернул репозиторий) обратно в хендлер 
+	return createdTask, nil // передаем объект задачи (который вернул репозиторий) обратно в хендлер
 }
 
 // GetTasks - возвращает все задачи
@@ -65,20 +65,31 @@ func (s *TaskService) GetTasks() ([]TaskStruct, error) {
 }
 
 func (s *TaskService) UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRequestBody) (*TaskStruct, error) {
-	// проверка на пустой тип задачи
-    if strings.TrimSpace(*taskRequest.Task) == "" {
-        return nil, errors.New("task is empty") // Если задача пустая, возвращаем ошибку
-    }
-
-	task, err := s.repo.GetByID(id); 
-	if err != nil {
-		return nil, err 
+	task, err := s.repo.GetByID(id)
+	if err != nil || task.ID == 0 {
+		return nil, errors.New("task not found")
 	}
 
-	// обновляем поля задачи
-	
+	updated := false
+
+	if taskRequest.Task != nil {
+		// проверяем что таска не nil перед ее обновлением
+		if strings.TrimSpace(*taskRequest.Task) == "" {
+			return nil, errors.New("task is empty")
+		}
+		// обновляем
+		task.Task = *taskRequest.Task // обновляем таску если она была передана для обновления
+		updated = true
+	}
+
 	if taskRequest.IsDone != nil {
-		task.IsDone = *taskRequest.IsDone // обновляем IsDone если он был передан для обновления
+		// обновляем
+		task.IsDone = *taskRequest.IsDone // обновляем флаг is_done если он был передан для обновления
+		updated = true
+	}
+
+	if !updated {
+		return nil, errors.New("no fields to update")
 	}
 
 	// обновляем задачу
@@ -91,8 +102,8 @@ func (s *TaskService) UpdateTask(id uint, taskRequest openapi.PatchTasksIdJSONRe
 
 func (s *TaskService) DeleteTask(id uint) error {
 	// ищем задачу по ID
-	task, err := s.repo.GetByID(id) 
-	if err != nil {
+	task, err := s.repo.GetByID(id)
+	if err != nil || task.ID == 0 {
 		return errors.New("task not found")
 	}
 	// удаляем задачу
@@ -102,4 +113,3 @@ func (s *TaskService) DeleteTask(id uint) error {
 	}
 	return nil
 }
-

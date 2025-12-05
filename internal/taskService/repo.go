@@ -21,7 +21,7 @@ import (
 type TaskRepoInterface interface {
 	Create(task *TaskStruct) (*TaskStruct, error) // исправлена пока только сигнатура этого метода
 	GetAll() ([]TaskStruct, error)
-	GetByID(id uint) (TaskStruct, error)
+	GetByID(id uint) (TaskStruct, error)	
 	Update(task *TaskStruct) (*TaskStruct, error)
 	Delete(task *TaskStruct) error
 }
@@ -44,7 +44,7 @@ func (r *TaskRepo) GetAll() ([]TaskStruct, error) {
 	err := db.DB.Find(&tasks).Error
 	if err != nil  {
 		if strings.Contains(err.Error(), "relation") {
-		// если таблицы нет - возвращаем пустой массив []
+		// если таблицы нет, то вместо ошибки возвращаем пустой массив []
 		return []TaskStruct{}, nil 
 		}
 		// возвращаем ошибку, если эта ошибка не изза отсутствия таблицы

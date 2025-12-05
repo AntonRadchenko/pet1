@@ -42,11 +42,11 @@ func TestCreateTask(t *testing.T) {
 			mockRepo := new(MockTaskRepo)    // создаем для каждого теста мок-репозиоторий
 			tt.mockSetup(mockRepo, tt.input) // настройка мока
 
-			service := NewService(mockRepo)
+			service := NewTaskService(mockRepo)
 			result, err := service.CreateTask(openapi.PostTasksJSONRequestBody{ // вызывается метод из сервисного слоя
-				Task: tt.input.Task,
+				Task:   tt.input.Task,
 				IsDone: &tt.input.IsDone,
-			})			
+			})
 
 			if tt.wantErr { // если ожидается ошибка, то проверяется что ошибка произошла
 				assert.Error(t, err)
@@ -95,7 +95,7 @@ func TestGetTasks(t *testing.T) {
 			mockRepo := new(MockTaskRepo)
 			tt.mockSetup(mockRepo)
 
-			service := NewService(mockRepo)
+			service := NewTaskService(mockRepo)
 			result, err := service.GetTasks()
 
 			if tt.wantErr {
@@ -121,153 +121,211 @@ func TestGetTasks(t *testing.T) {
 }
 
 func TestUpdateTask(t *testing.T) {
-    tests := []struct {
-        name      string
-        id        uint
-        input     *TaskStruct
-        wantTask  *TaskStruct
-        wantErr   bool
-        mockSetup func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct)
-    }{
-        {
-            name: "успешное обновление задачи",
-            id:   1,
-            input: &TaskStruct{
-                Task:   "Updated task",
-                IsDone: true,
-            },
-            wantTask: &TaskStruct{
-                ID:     1,
-                Task:   "Updated task",
-                IsDone: true,
-            },
-            wantErr: false,
-            mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-                existingTask := TaskStruct{
-                    ID:     id,
-                    Task:   "Old task",
-                    IsDone: false,
-                }
-                m.On("GetByID", id).Return(existingTask, nil)
-                // используем mock.Anything
-                m.On("Update", mock.Anything).Return(wantTask, nil)
-            },
-        },
-        {
-            name: "обновление только текста задачи",
-            id:   2,
-            input: &TaskStruct{
-                Task:   "New text",
-                IsDone: false, // Не будет передано в API
-            },
-            wantTask: &TaskStruct{
-                ID:     2,
-                Task:   "New text",
-                IsDone: false, // Старое значение сохранится
-            },
-            wantErr: false,
-            mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-                existingTask := TaskStruct{
-                    ID:     id,
-                    Task:   "Old task",
-                    IsDone: false,
-                }
-                m.On("GetByID", id).Return(existingTask, nil)
-                m.On("Update", mock.Anything).Return(wantTask, nil)
-            },
-        },
-        {
-            name: "ошибка - задача не найдена",
-            id:   999,
-            input: &TaskStruct{
-                Task:   "Some task",
-                IsDone: true,
-            },
-            wantTask: nil,
-            wantErr:  true,
-            mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-                m.On("GetByID", id).Return(TaskStruct{}, errors.New("task not found"))
-            },
-        },
-        {
-            name: "ошибка - пустая задача",
-            id:   1,
-            input: &TaskStruct{
-                Task:   "", // Пустая строка
-                IsDone: true,
-            },
-            wantTask: nil,
-            wantErr:  true,
-            mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-                // Ничего не настраиваем - валидация сработает раньше
-            },
-        },
-        {
-            name: "ошибка при обновлении в БД",
-            id:   1,
-            input: &TaskStruct{
-                Task:   "Updated task",
-                IsDone: true,
-            },
-            wantTask: nil,
-            wantErr:  true,
-            mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-                existingTask := TaskStruct{
-                    ID:     id,
-                    Task:   "Old task",
-                    IsDone: false,
-                }
-                m.On("GetByID", id).Return(existingTask, nil)
-                m.On("Update", mock.Anything).Return(nil, errors.New("db error"))
-            },
+	tests := []struct {
+		name      string
+		id        uint
+		input     *TaskStruct
+		wantTask  *TaskStruct
+		wantErr   bool
+		mockSetup func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct)
+	}{
+		{
+			name: "успешное обновление задачи",
+			id:   1,
+			input: &TaskStruct{
+				Task:   "Updated task",
+				IsDone: true,
+			},
+			wantTask: &TaskStruct{
+				ID:     1,
+				Task:   "Updated task",
+				IsDone: true,
+			},
+			wantErr: false,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Old task",
+					IsDone: false,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+				// используем mock.Anything
+				m.On("Update", mock.Anything).Return(wantTask, nil)
+			},
 		},
-    }
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            mockRepo := new(MockTaskRepo)
-            tt.mockSetup(mockRepo, tt.id, tt.input, tt.wantTask)
+		{
+			name: "обновление только текста задачи",
+			id:   2,
+			input: &TaskStruct{
+				Task:   "New text",
+				IsDone: false, // Не будет передано в API
+			},
+			wantTask: &TaskStruct{
+				ID:     2,
+				Task:   "New text",
+				IsDone: false, // Старое значение сохранится
+			},
+			wantErr: false,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Old task",
+					IsDone: false,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+				m.On("Update", mock.Anything).Return(wantTask, nil)
+			},
+		},
 
-            service := NewService(mockRepo)
-            
-            apiRequest := openapi.PatchTasksIdJSONRequestBody{
-                Task: &tt.input.Task,
-            }
-            
-			if tt.name == "успешное обновление задачи" || tt.name == "ошибка при обновлении в БД" {
+		{
+			name: "обновление только статуса (task = nil)",
+			id:   3,
+			input: &TaskStruct{
+				Task:   "", // Будет nil в запросе
+				IsDone: true,
+			},
+			wantTask: &TaskStruct{
+				ID:     3,
+				Task:   "Existing task", // остаётся старым
+				IsDone: true,
+			},
+			wantErr: false,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Existing task",
+					IsDone: false,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+				m.On("Update", mock.Anything).Return(wantTask, nil)
+			},
+		},
+
+		{
+			name: "ошибка - задача не найдена",
+			id:   999,
+			input: &TaskStruct{
+				Task:   "Some task",
+				IsDone: true,
+			},
+			wantTask: nil,
+			wantErr:  true,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				m.On("GetByID", id).Return(TaskStruct{}, errors.New("task not found"))
+			},
+		},
+
+		{
+			name: "ошибка - пустая задача (указатель на пустую строку)",
+			id:   4,
+			input: &TaskStruct{
+				Task:   "", // Пустая строка через указатель
+				IsDone: false,
+			},
+			wantTask: nil,
+			wantErr:  true,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Old task",
+					IsDone: false,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+			},
+		},
+
+		{
+			name:     "оба поля nil - нет полей для обновления",
+			id:       5,
+			input:    &TaskStruct{}, // Все поля по умолчанию
+			wantTask: nil,
+			wantErr:  true,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Existing task",
+					IsDone: true,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+			},
+		},
+
+		{
+			name: "ошибка при обновлении в БД",
+			id:   6,
+			input: &TaskStruct{
+				Task:   "Updated task",
+				IsDone: true,
+			},
+			wantTask: nil,
+			wantErr:  true,
+			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Old task",
+					IsDone: false,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
+				m.On("Update", mock.Anything).Return(nil, errors.New("db error"))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockTaskRepo)
+			tt.mockSetup(mockRepo, tt.id, tt.input, tt.wantTask)
+
+			service := NewTaskService(mockRepo)
+
+			apiRequest := openapi.PatchTasksIdJSONRequestBody{}
+
+			// Формируем запрос в зависимости от кейса
+			if tt.name == "обновление только статуса (task = nil)" {
+				// Task = nil, IsDone передаётся
 				apiRequest.IsDone = &tt.input.IsDone
+			} else if tt.name == "оба поля nil - нет полей для обновления" {
+				// Оба поля nil - ничего не передаём
+			} else {
+				// Стандартный случай
+				if tt.input.Task != "" {
+					apiRequest.Task = &tt.input.Task
+				}
+				if tt.input.IsDone {
+					apiRequest.IsDone = &tt.input.IsDone
+				}
 			}
-            
-            result, err := service.UpdateTask(tt.id, apiRequest)
 
-            if tt.wantErr {
-                assert.Error(t, err)
-                assert.Nil(t, result)
-            } else {
-                assert.NoError(t, err)
-                assert.NotNil(t, result)
-                assert.Equal(t, tt.wantTask.Task, result.Task)
-                assert.Equal(t, tt.wantTask.IsDone, result.IsDone)
-            }
+			result, err := service.UpdateTask(tt.id, apiRequest)
 
-            mockRepo.AssertExpectations(t)
-        })
-    }
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.wantTask.Task, result.Task)
+				assert.Equal(t, tt.wantTask.IsDone, result.IsDone)
+			}
+
+			mockRepo.AssertExpectations(t)
+		})
+	}
 }
 
 func TestDeleteTask(t *testing.T) {
 	tasks := []struct {
-		name string
-		id uint
+		name      string
+		id        uint
 		mockSetup func(m *MockTaskRepo, id uint)
-		wantErr bool
+		wantErr   bool
 	}{
 		{
 			name: "успешное удаление задачи",
-			id: 1,
+			id:   1,
 			mockSetup: func(m *MockTaskRepo, id uint) {
 				existingTask := TaskStruct{
-					ID: id,
-					Task: "Task 1",
+					ID:     id,
+					Task:   "Task 1",
 					IsDone: false,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
@@ -277,7 +335,7 @@ func TestDeleteTask(t *testing.T) {
 		},
 		{
 			name: "задача не найдена",
-			id: 999,
+			id:   999,
 			mockSetup: func(m *MockTaskRepo, id uint) {
 				// GetByID сразу вернет ошибку так как не найдет id
 				m.On("GetByID", id).Return(TaskStruct{}, errors.New("not found"))
@@ -286,15 +344,15 @@ func TestDeleteTask(t *testing.T) {
 		},
 		{
 			name: "ошибка при удалении в бд",
-			id: 2,
+			id:   2,
 			mockSetup: func(m *MockTaskRepo, id uint) {
-                existingTask := TaskStruct{
-                    ID:     id,
-                    Task:   "Task 2",
-                    IsDone: false,
-                }		
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Task 2",
+					IsDone: false,
+				}
 				m.On("GetByID", id).Return(existingTask, nil)
-				// ошибка возникает при удалении из бд		
+				// ошибка возникает при удалении из бд
 				m.On("Delete", &existingTask).Return(errors.New("db error"))
 			},
 			wantErr: true,
@@ -306,7 +364,7 @@ func TestDeleteTask(t *testing.T) {
 			mockRepo := new(MockTaskRepo)
 			tt.mockSetup(mockRepo, tt.id)
 
-			service := NewService(mockRepo)
+			service := NewTaskService(mockRepo)
 			err := service.DeleteTask(tt.id)
 
 			if tt.wantErr {
