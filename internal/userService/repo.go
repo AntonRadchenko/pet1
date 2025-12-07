@@ -13,7 +13,6 @@ type UserRepoInterface interface {
 	Create(user *UserStruct) (*UserStruct, error)
 	GetAll() ([]UserStruct, error)
 	GetByID(id uint) (UserStruct, error)
-	// GetByEmail(email string) (UserStruct, error) // вместо этого метода, сделать в бд (в миграции) constraints по полю Email
 	Update(user *UserStruct) (*UserStruct, error)
 	Delete(user *UserStruct) error
 }
@@ -52,7 +51,7 @@ func (r *UserRepo) GetByID(id uint) (UserStruct, error) {
 	err := db.DB.First(&user, "id = ?", id).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return UserStruct{}, nil
+			return UserStruct{}, err
 		}
 		return user, err
 	}

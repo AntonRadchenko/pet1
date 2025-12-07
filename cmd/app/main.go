@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/AntonRadchenko/WebPet1/internal/db"
-	"github.com/AntonRadchenko/WebPet1/internal/handlers"
 	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 	"github.com/AntonRadchenko/WebPet1/internal/userService"
-	"github.com/AntonRadchenko/WebPet1/openapi"
+    "github.com/AntonRadchenko/WebPet1/internal/web/tasks"
+    "github.com/AntonRadchenko/WebPet1/internal/web/users" // users пакет // users API
 )
 
 // 5. верхний слой (все связывается вместе)
@@ -26,17 +26,20 @@ func main() {
 	usersRepo := &userService.UserRepo{}
 	usersSevice := userService.NewUserService(usersRepo)
 
-	// создаем общий сервер для обоих сервисов (tasks и users)
-	server := handlers.NewServer(tasksService, usersSevice)
+	// создаём handlers (TaskHandler и UserHandler)
+	taskHandler := tasks.NewTaskHandler(tasksService)
+	userHandler := users.NewUserHandler(usersSevice)
 
-	// оборачиваем API-хендлер в strict-server (server реализует StrictServerInterface)
-	strictHandler := openapi.NewStrictHandler(server, nil)	
+	// оборачиваем API-хендлеры в strict-server 
+    strictTaskHandler := tasks.NewStrictHandler(taskHandler, nil)
+    strictUserHandler := users.NewStrictHandler(userHandler, nil)
 
 	// создаём наш router
 	mux := http.NewServeMux()
 
 	// регистрируем OpenAPI маршруты в mux
-	openapi.HandlerFromMux(strictHandler, mux)
+	tasks.HandlerFromMux(strictTaskHandler, mux)
+	users.HandlerFromMux(strictUserHandler, mux)
 
 	// запускаем сервер
 	log.Println("Server is running on :9092")

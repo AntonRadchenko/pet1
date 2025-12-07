@@ -4,57 +4,83 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/AntonRadchenko/WebPet1/openapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 )
 
 func TestCreateTask(t *testing.T) {
+	// вспомогательные функции
+	boolPtr := func(b bool) *bool { return &b }
+
 	// создаем слайс структур, в каждой из которых описан тестовый случай
 	tests := []struct {
-		name      string                                   // имя теста
-		input     *TaskStruct                              // входные данные
-		mockSetup func(m *MockTaskRepo, input *TaskStruct) // функция настройки мок-репы
-		wantErr   bool                                     // флаг который говорит ожидать ли ошибку
+		name      string                                                     // имя теста
+		params    CreateTaskParams                                           // входные данные
+		want      *Task                                                      // ошидаемая бизнес-модель
+		mockSetup func(m *MockTaskRepo, params CreateTaskParams, want *Task) // функция настройки мок-репы
+		wantErr   bool                                                       // флаг который говорит ожидать ли ошибку
 	}{
 		{
-			name:  "успешное создание задачи",
-			input: &TaskStruct{Task: "Test", IsDone: false},
-			mockSetup: func(m *MockTaskRepo, input *TaskStruct) {
-				// настраиваем мок, чтобы при вызове CreateTask с параметром input
-				// он возвращал заранее заданные данные (например, объект или ошибку).
-				m.On("Create", input).Return(input, nil)
+			name: "успешное создание задачи",
+			params: CreateTaskParams{
+				Task:   "Test",
+				IsDone: boolPtr(false),
+				UserId: 1,
+			},
+			want: &Task{
+				Task:   "Test",
+				IsDone: boolPtr(false),
+				UserId: 1,
+			},
+			mockSetup: func(m *MockTaskRepo, params CreateTaskParams, want *Task) {
+				// Конвертируем params в TaskStruct для мока
+				dbTask := &TaskStruct{
+					Task:   params.Task,
+					IsDone: *params.IsDone,
+					UserId: params.UserId,
+				}
+				m.On("Create", dbTask).Return(dbTask, nil)
 			},
 			wantErr: false,
 		},
-		{
-			name:  "ошибка при создании",
-			input: &TaskStruct{Task: "Bad task", IsDone: false},
-			mockSetup: func(m *MockTaskRepo, input *TaskStruct) {
-				m.On("Create", input).Return(&TaskStruct{}, errors.New("db error"))
-			},
-			wantErr: true,
-		},
+        {
+            name: "ошибка при создании в БД",
+            params: CreateTaskParams{
+                Task:   "Bad task",
+                IsDone: boolPtr(false),
+                UserId: 1,
+            },
+            want:    nil,
+            wantErr: true,
+            mockSetup: func(m *MockTaskRepo, params CreateTaskParams, want *Task) {
+                dbTask := &TaskStruct{
+                    Task:   params.Task,
+                    IsDone: *params.IsDone,
+                    UserId: params.UserId,
+                }
+                m.On("Create", dbTask).Return(&TaskStruct{}, errors.New("db error"))
+            },
+        },
 	}
 
 	for _, tt := range tests { // проходимся по тестам
 		t.Run(tt.name, func(t *testing.T) { // запускаем каждый тест
 			mockRepo := new(MockTaskRepo)    // создаем для каждого теста мок-репозиоторий
-			tt.mockSetup(mockRepo, tt.input) // настройка мока
+			tt.mockSetup(mockRepo, tt.params, tt.want) // настройка мока
 
 			service := NewTaskService(mockRepo)
-			result, err := service.CreateTask(openapi.PostTasksJSONRequestBody{ // вызывается метод из сервисного слоя
-				Task:   tt.input.Task,
-				IsDone: &tt.input.IsDone,
-			})
+			result, err := service.CreateTask(tt.params)
 
 			if tt.wantErr { // если ожидается ошибка, то проверяется что ошибка произошла
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else { // а если ошибки НЕ ожидается, то проверяется что ее нет, и что результат соответствует ожидаемому входному значению
 				assert.NoError(t, err)
-				// сравниваем только поля Task, и IsDone так как ID и остальные поля сравнивать не нужно (они все ровно разные так как генерятся по новой)
-				assert.Equal(t, tt.input.Task, result.Task)
-				assert.Equal(t, tt.input.IsDone, result.IsDone)
+				assert.Equal(t, tt.want.Task, result.Task)
+				assert.NotNil(t, result.IsDone)
+				assert.Equal(t, *tt.want.IsDone, *result.IsDone)
+				assert.Equal(t, tt.want.UserId, result.UserId)
 			}
 
 			mockRepo.AssertExpectations(t) // проверяем что все ожидаемые вызовы методов мока были выполнены
@@ -67,18 +93,21 @@ func TestGetTasks(t *testing.T) {
 		name      string
 		mockSetup func(m *MockTaskRepo)
 		wantErr   bool
-		wantTasks []TaskStruct
+		want []Task
 	}{
 		{
 			name: "успешное получение всех задач",
 			mockSetup: func(m *MockTaskRepo) {
 				m.On("GetAll").Return([]TaskStruct{
-					{Task: "Task 1", IsDone: true},
-					{Task: "Task 2", IsDone: false},
+					{Task: "Task 1", IsDone: true, UserId: 1},
+					{Task: "Task 2", IsDone: false, UserId: 2},
 				}, nil)
 			},
-			wantErr:   false,
-			wantTasks: []TaskStruct{{Task: "Task 1", IsDone: true}, {Task: "Task 2", IsDone: false}},
+			wantErr: false,
+			want: []Task{
+				{Task: "Task 1", IsDone: &[]bool{true}[0], UserId: 1},
+				{Task: "Task 2", IsDone: &[]bool{false}[0], UserId: 2},
+			},
 		},
 		{
 			name: "ошибка при получении задач",
@@ -86,7 +115,7 @@ func TestGetTasks(t *testing.T) {
 				m.On("GetAll").Return(nil, errors.New("db error"))
 			},
 			wantErr:   true,
-			wantTasks: nil,
+			want: nil,
 		},
 	}
 
@@ -104,14 +133,13 @@ func TestGetTasks(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Сравниваем длину слайсов, чтобы убедиться что они одинаковые
-				assert.Equal(t, len(tt.wantTasks), len(result))
+				assert.Equal(t, len(tt.want), len(result))
 
 				// Если слайсы не пустые, то проходим по ним и сравниваем только важные поля
-				if len(result) > 0 {
-					for i := range result {
-						assert.Equal(t, tt.wantTasks[i].Task, result[i].Task)
-						assert.Equal(t, tt.wantTasks[i].IsDone, result[i].IsDone)
-					}
+				for i := range result {
+					assert.Equal(t, tt.want[i].Task, result[i].Task)
+					assert.Equal(t, *tt.want[i].IsDone, *result[i].IsDone)
+					assert.Equal(t, tt.want[i].UserId, result[i].UserId)
 				}
 			}
 
@@ -121,130 +149,193 @@ func TestGetTasks(t *testing.T) {
 }
 
 func TestUpdateTask(t *testing.T) {
+	// Вспомогательные функции
+	boolPtr := func(b bool) *bool { return &b }
+	stringPtr := func(s string) *string { return &s }
+	uintPtr := func(u uint) *uint { return &u }
+
 	tests := []struct {
 		name      string
 		id        uint
-		input     *TaskStruct
-		wantTask  *TaskStruct
+		params    UpdateTaskParams
+		want      *Task
 		wantErr   bool
-		mockSetup func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct)
+		mockSetup func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task)
 	}{
 		{
 			name: "успешное обновление задачи",
 			id:   1,
-			input: &TaskStruct{
-				Task:   "Updated task",
-				IsDone: true,
+			params: UpdateTaskParams{
+				Task:   stringPtr("Updated task"),
+				IsDone: boolPtr(true),
+				UserId: uintPtr(2),
 			},
-			wantTask: &TaskStruct{
+			want: &Task{
 				ID:     1,
 				Task:   "Updated task",
-				IsDone: true,
+				IsDone: boolPtr(true),
+				UserId: 2,
 			},
 			wantErr: false,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
+				// 1. Существующая задача в БД (для GetByID)
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Old task",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
-				// используем mock.Anything
-				m.On("Update", mock.Anything).Return(wantTask, nil)
+
+				// 2. Обновлённая задача (для Update)
+				updatedTask := &TaskStruct{
+					ID:     id,
+					Task:   *params.Task,
+					IsDone: *params.IsDone,
+					UserId: *params.UserId,
+				}
+				m.On("Update", mock.Anything).Return(updatedTask, nil)
 			},
 		},
 		{
-			name: "обновление только текста задачи",
+			name: "обновление только текста",
 			id:   2,
-			input: &TaskStruct{
-				Task:   "New text",
-				IsDone: false, // Не будет передано в API
+			params: UpdateTaskParams{
+				Task: stringPtr("New text"),
 			},
-			wantTask: &TaskStruct{
+			want: &Task{
 				ID:     2,
 				Task:   "New text",
-				IsDone: false, // Старое значение сохранится
+				IsDone: boolPtr(false), // старое значение
+				UserId: 1,              // старое значение
 			},
 			wantErr: false,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Old task",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
-				m.On("Update", mock.Anything).Return(wantTask, nil)
+
+				updatedTask := &TaskStruct{
+					ID:     id,
+					Task:   *params.Task,
+					IsDone: false, // не меняли
+					UserId: 1,     // не меняли
+				}
+				m.On("Update", mock.Anything).Return(updatedTask, nil)
 			},
 		},
 
 		{
-			name: "обновление только статуса (task = nil)",
-			id:   3,
-			input: &TaskStruct{
-				Task:   "", // Будет nil в запросе
-				IsDone: true,
+			name: "обновление только статуса",
+			id:   6,
+			params: UpdateTaskParams{
+				IsDone: boolPtr(true),
+				// Task и UserID - nil
 			},
-			wantTask: &TaskStruct{
-				ID:     3,
-				Task:   "Existing task", // остаётся старым
-				IsDone: true,
+			want: &Task{
+				ID:     6,
+				Task:   "Existing task", // старое значение
+				IsDone: boolPtr(true),
+				UserId: 1, // старое значение
 			},
 			wantErr: false,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Existing task",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
-				m.On("Update", mock.Anything).Return(wantTask, nil)
+
+				updatedTask := &TaskStruct{
+					ID:     id,
+					Task:   "Existing task", // не меняли
+					IsDone: true,            // обновили
+					UserId: 1,               // не меняли
+				}
+				m.On("Update", mock.Anything).Return(updatedTask, nil)
 			},
 		},
+		{
+			name: "обновление только UserID",
+			id:   7,
+			params: UpdateTaskParams{
+				UserId: uintPtr(3),
+			},
+			want: &Task{
+				ID:     7,
+				Task:   "Existing task",
+				IsDone: boolPtr(false),
+				UserId: 3,
+			},
+			wantErr: false,
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
+				existingTask := TaskStruct{
+					ID:     id,
+					Task:   "Existing task",
+					IsDone: false,
+					UserId: 1,
+				}
+				m.On("GetByID", id).Return(existingTask, nil)
 
+				updatedTask := &TaskStruct{
+					ID:     id,
+					Task:   "Existing task",
+					IsDone: false,
+					UserId: 3,
+				}
+				m.On("Update", mock.Anything).Return(updatedTask, nil)
+			},
+		},
 		{
 			name: "ошибка - задача не найдена",
 			id:   999,
-			input: &TaskStruct{
-				Task:   "Some task",
-				IsDone: true,
+			params: UpdateTaskParams{
+				Task: stringPtr("Some task"),
 			},
-			wantTask: nil,
-			wantErr:  true,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
-				m.On("GetByID", id).Return(TaskStruct{}, errors.New("task not found"))
+			want:    nil,
+			wantErr: true,
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
+				m.On("GetByID", id).Return(TaskStruct{}, gorm.ErrRecordNotFound)
 			},
 		},
 
 		{
-			name: "ошибка - пустая задача (указатель на пустую строку)",
-			id:   4,
-			input: &TaskStruct{
-				Task:   "", // Пустая строка через указатель
-				IsDone: false,
+			name: "ошибка - пустая задача",
+			id:   3,
+			params: UpdateTaskParams{
+				Task: stringPtr(""), // пустая строка
 			},
-			wantTask: nil,
-			wantErr:  true,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			want:    nil,
+			wantErr: true,
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Old task",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
 			},
 		},
 
 		{
-			name:     "оба поля nil - нет полей для обновления",
-			id:       5,
-			input:    &TaskStruct{}, // Все поля по умолчанию
-			wantTask: nil,
-			wantErr:  true,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			name:    "все поля nil - нет полей для обновления",
+			id:      4,
+			params:  UpdateTaskParams{}, // все поля nil
+			want:    nil,
+			wantErr: true,
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Existing task",
 					IsDone: true,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
 			},
@@ -252,18 +343,19 @@ func TestUpdateTask(t *testing.T) {
 
 		{
 			name: "ошибка при обновлении в БД",
-			id:   6,
-			input: &TaskStruct{
-				Task:   "Updated task",
-				IsDone: true,
+			id:   5,
+			params: UpdateTaskParams{
+				Task:   stringPtr("Updated task"),
+				IsDone: boolPtr(true),
 			},
-			wantTask: nil,
-			wantErr:  true,
-			mockSetup: func(m *MockTaskRepo, id uint, input, wantTask *TaskStruct) {
+			want:    nil,
+			wantErr: true,
+			mockSetup: func(m *MockTaskRepo, id uint, params UpdateTaskParams, want *Task) {
 				existingTask := TaskStruct{
 					ID:     id,
 					Task:   "Old task",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
 				m.On("Update", mock.Anything).Return(nil, errors.New("db error"))
@@ -273,29 +365,10 @@ func TestUpdateTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockTaskRepo)
-			tt.mockSetup(mockRepo, tt.id, tt.input, tt.wantTask)
+			tt.mockSetup(mockRepo, tt.id, tt.params, tt.want)
 
 			service := NewTaskService(mockRepo)
-
-			apiRequest := openapi.PatchTasksIdJSONRequestBody{}
-
-			// Формируем запрос в зависимости от кейса
-			if tt.name == "обновление только статуса (task = nil)" {
-				// Task = nil, IsDone передаётся
-				apiRequest.IsDone = &tt.input.IsDone
-			} else if tt.name == "оба поля nil - нет полей для обновления" {
-				// Оба поля nil - ничего не передаём
-			} else {
-				// Стандартный случай
-				if tt.input.Task != "" {
-					apiRequest.Task = &tt.input.Task
-				}
-				if tt.input.IsDone {
-					apiRequest.IsDone = &tt.input.IsDone
-				}
-			}
-
-			result, err := service.UpdateTask(tt.id, apiRequest)
+			result, err := service.UpdateTask(tt.id, tt.params)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -303,8 +376,9 @@ func TestUpdateTask(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				assert.Equal(t, tt.wantTask.Task, result.Task)
-				assert.Equal(t, tt.wantTask.IsDone, result.IsDone)
+				assert.Equal(t, tt.want.Task, result.Task)
+				assert.Equal(t, *tt.want.IsDone, *result.IsDone)
+				assert.Equal(t, tt.want.UserId, result.UserId)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -327,6 +401,7 @@ func TestDeleteTask(t *testing.T) {
 					ID:     id,
 					Task:   "Task 1",
 					IsDone: false,
+					UserId: 1,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
 				m.On("Delete", &existingTask).Return(nil)
@@ -350,6 +425,7 @@ func TestDeleteTask(t *testing.T) {
 					ID:     id,
 					Task:   "Task 2",
 					IsDone: false,
+					UserId: 2,
 				}
 				m.On("GetByID", id).Return(existingTask, nil)
 				// ошибка возникает при удалении из бд

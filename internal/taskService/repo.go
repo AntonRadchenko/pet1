@@ -60,7 +60,7 @@ func (r *TaskRepo) GetByID(id uint) (TaskStruct, error) {
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// если задачи нет,
-			return TaskStruct{}, nil
+			return TaskStruct{}, err
 		}
 		return task, err 
 	}

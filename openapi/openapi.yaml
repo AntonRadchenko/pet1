@@ -166,16 +166,23 @@ components:
           type: string
         is_done:
           type: boolean
+        user_id:
+          type: integer
+          format: uint
     CreateTaskRequest:
       type: object
       required:
         - task
+        - user_id
       properties:
         task:
           type: string
         is_done:
           type: boolean
           nullable: true
+        user_id:
+          type: integer
+          format: uint
     UpdateTaskRequest:
       type: object
       properties:
@@ -185,7 +192,11 @@ components:
         is_done:
           type: boolean
           nullable: true
-
+        user_id:
+          type: integer
+          format: uint
+          nullable: true
+          
     User:
       type: object
       properties:

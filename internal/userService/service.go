@@ -4,9 +4,26 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/AntonRadchenko/WebPet1/openapi"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// структура параметров метода CreateUser
+type CreateUserParams struct {
+    Email    string  
+    Password string 
+}
+
+// структура параметров метода UpdateUser
+type UpdateUserParams struct {
+    Email    *string  // nil если не обновлять
+    Password *string  // nil если не обновлять
+}
+
+// бизнес-модель, которую возвращает сервис
+type User struct {
+	ID uint
+	Email string
+}
 
 type UserService struct {
 	repo UserRepoInterface
@@ -25,67 +42,82 @@ func hashPass(password string) (string, error) {
 	return string(hashed), nil
 }
 
-func (s *UserService) CreateUser(userRequest openapi.PostUsersJSONRequestBody) (*UserStruct, error) {
-	if strings.TrimSpace(string(userRequest.Email)) == "" {
+func (s *UserService) CreateUser(params CreateUserParams) (*User, error) {
+	if strings.TrimSpace(params.Email) == "" {
 		return nil, errors.New("email is empty")
 	}
 
-	if strings.TrimSpace(userRequest.Password) == "" {
+	if strings.TrimSpace(params.Password) == "" {
 		return nil, errors.New("password is empty")
 	}
 
 	// хешируем пароль 
-	hashedPassword, err := hashPass(userRequest.Password)
+	hashedPassword, err := hashPass(params.Password)
 	if err != nil {
 		return nil, errors.New("fail to hash password")
 	}
 
-	user := &UserStruct{
-		Email: string(userRequest.Email),
+	// создаем бд-модель (приватная)
+	dbUser := &UserStruct{
+		Email: params.Email,
 		Password: hashedPassword, // передаю в модель бд захешировнный пароль
 	}
 
-	createdUser, err := s.repo.Create(user)
+	createdUser, err := s.repo.Create(dbUser)
 	if err != nil {
 		return nil, err
 	}
-	return createdUser, nil
+
+	// маппим бд-модель в бизнес-модель 
+	return &User{
+		ID: createdUser.ID,
+		Email: createdUser.Email,
+	}, nil
 }
 
-func (s *UserService) GetUsers() ([]UserStruct, error) {
-	users, err := s.repo.GetAll()
+func (s *UserService) GetUsers() ([]User, error) {
+	dbUsers, err := s.repo.GetAll()
 	if err != nil {
 		return nil, err
+	}
+
+	// маппим бд-модель в бизнес-модель
+	users := make([]User, 0, len(dbUsers))
+	for _, dbUser := range dbUsers {
+		users = append(users, User{
+			ID: dbUser.ID,
+			Email: dbUser.Email,
+		})
 	}
 	return users, nil
 }
 
-func (s *UserService) UpdateUser(id uint, userRequest openapi.PatchUsersIdJSONRequestBody) (*UserStruct, error) {
-	user, err := s.repo.GetByID(id)
-	if err != nil || user.ID == 0 {
+func (s *UserService) UpdateUser(id uint, params UpdateUserParams) (*User, error) {
+	dbUser, err := s.repo.GetByID(id)
+	if err != nil || dbUser.ID == 0 {
 		return nil, errors.New("user not found")
 	}
 
 	updated := false
 
-	if userRequest.Email != nil {
-		if strings.TrimSpace(string(*userRequest.Email)) == "" {
+	if params.Email != nil {
+		if strings.TrimSpace(*params.Email) == "" {
 			return nil, errors.New("email is empty")
 		}
-		user.Email = string(*userRequest.Email)
+		dbUser.Email = *params.Email
 		updated = true
 	}
 
-	if userRequest.Password != nil {
-		if strings.TrimSpace(*userRequest.Password) == "" {
+	if params.Password != nil {
+		if strings.TrimSpace(*params.Password) == "" {
 			return nil, errors.New("password is empty")
 		}
 		// хешируем пароль с реквеста
-		hashed, err := hashPass(*userRequest.Password)
+		hashed, err := hashPass(*params.Password)
 		if err != nil {
 			return nil, errors.New("fail to hash password")
 		}
-		user.Password = hashed
+		dbUser.Password = hashed
 		updated = true
 	}
 
@@ -93,11 +125,16 @@ func (s *UserService) UpdateUser(id uint, userRequest openapi.PatchUsersIdJSONRe
 		return nil, errors.New("no fields to update")
 	}
 
-	updatedUser, err := s.repo.Update(&user)
+	updatedUser, err := s.repo.Update(&dbUser)
 	if err != nil {
 		return nil, err
 	}
-	return updatedUser, nil
+
+	// маппим бд-модель в бизнес-модель 
+	return &User{
+		ID: updatedUser.ID,
+		Email: updatedUser.Email,
+	}, nil
 }
 
 func (s *UserService) DeleteUser(id uint) error {
