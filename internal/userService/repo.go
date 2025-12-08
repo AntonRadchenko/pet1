@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/AntonRadchenko/WebPet1/internal/db"
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 	"gorm.io/gorm"
 )
 
@@ -13,6 +14,7 @@ type UserRepoInterface interface {
 	Create(user *UserStruct) (*UserStruct, error)
 	GetAll() ([]UserStruct, error)
 	GetByID(id uint) (UserStruct, error)
+	GetTasksForUser(userID uint) ([]taskService.TaskStruct, error)
 	Update(user *UserStruct) (*UserStruct, error)
 	Delete(user *UserStruct) error
 }
@@ -56,6 +58,20 @@ func (r *UserRepo) GetByID(id uint) (UserStruct, error) {
 		return user, err
 	}
 	return user, nil
+}
+
+func GetTasksForUser(userID uint) ([]taskService.TaskStruct, error) {
+	var user UserStruct
+
+	// Загружает пользователя вместе со всеми его задачами одним запросом
+	err := db.DB.Preload("Tasks").First(&user, userID).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("user not found")
+		}
+		return nil, err		
+	}
+	return user.Tasks, nil // возвращаем все таски пользователя (Tasks - поле в модели бд (слайс тасок))
 }
 
 func (r *UserRepo) Update(user *UserStruct) (*UserStruct, error) {

@@ -22,6 +22,14 @@ type CreateUserRequest struct {
 	Password string              `json:"password"`
 }
 
+// Task defines model for Task.
+type Task struct {
+	Id     *uint   `json:"id,omitempty"`
+	IsDone *bool   `json:"is_done,omitempty"`
+	Task   *string `json:"task,omitempty"`
+	UserId *uint   `json:"user_id,omitempty"`
+}
+
 // UpdateUserRequest defines model for UpdateUserRequest.
 type UpdateUserRequest struct {
 	Email    *openapi_types.Email `json:"email"`
@@ -54,6 +62,9 @@ type ServerInterface interface {
 	// Update a user
 	// (PATCH /users/{id})
 	PatchUsersId(w http.ResponseWriter, r *http.Request, id uint)
+	// Get all tasks for a specific user
+	// (GET /users/{id}/tasks)
+	GetUsersIdTasks(w http.ResponseWriter, r *http.Request, id uint)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -134,6 +145,31 @@ func (siw *ServerInterfaceWrapper) PatchUsersId(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchUsersId(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUsersIdTasks operation middleware
+func (siw *ServerInterfaceWrapper) GetUsersIdTasks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsersIdTasks(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -267,6 +303,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/users", wrapper.PostUsers)
 	m.HandleFunc("DELETE "+options.BaseURL+"/users/{id}", wrapper.DeleteUsersId)
 	m.HandleFunc("PATCH "+options.BaseURL+"/users/{id}", wrapper.PatchUsersId)
+	m.HandleFunc("GET "+options.BaseURL+"/users/{id}/tasks", wrapper.GetUsersIdTasks)
 
 	return m
 }
@@ -346,6 +383,31 @@ func (response PatchUsersId200JSONResponse) VisitPatchUsersIdResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUsersIdTasksRequestObject struct {
+	Id uint `json:"id"`
+}
+
+type GetUsersIdTasksResponseObject interface {
+	VisitGetUsersIdTasksResponse(w http.ResponseWriter) error
+}
+
+type GetUsersIdTasks200JSONResponse []Task
+
+func (response GetUsersIdTasks200JSONResponse) VisitGetUsersIdTasksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersIdTasks404Response struct {
+}
+
+func (response GetUsersIdTasks404Response) VisitGetUsersIdTasksResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get all users
@@ -360,6 +422,9 @@ type StrictServerInterface interface {
 	// Update a user
 	// (PATCH /users/{id})
 	PatchUsersId(ctx context.Context, request PatchUsersIdRequestObject) (PatchUsersIdResponseObject, error)
+	// Get all tasks for a specific user
+	// (GET /users/{id}/tasks)
+	GetUsersIdTasks(ctx context.Context, request GetUsersIdTasksRequestObject) (GetUsersIdTasksResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -498,6 +563,32 @@ func (sh *strictHandler) PatchUsersId(w http.ResponseWriter, r *http.Request, id
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PatchUsersIdResponseObject); ok {
 		if err := validResponse.VisitPatchUsersIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUsersIdTasks operation middleware
+func (sh *strictHandler) GetUsersIdTasks(w http.ResponseWriter, r *http.Request, id uint) {
+	var request GetUsersIdTasksRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsersIdTasks(ctx, request.(GetUsersIdTasksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsersIdTasks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUsersIdTasksResponseObject); ok {
+		if err := validResponse.VisitGetUsersIdTasksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

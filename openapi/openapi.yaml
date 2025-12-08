@@ -153,7 +153,30 @@ paths:
           description: User deleted successfully
         '404':
           description: User not found
-
+  
+  /users/{id}/tasks:
+    get:
+      summary: Get all tasks for a specific user
+      tags: 
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: List of user's tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '404':
+          description: User not found
 components:
   schemas:
     Task:

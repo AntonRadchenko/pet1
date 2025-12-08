@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/AntonRadchenko/WebPet1/internal/userService"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -16,10 +17,10 @@ func NewUserHandler(s *userService.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-func (h *UserHandler) PostUsers(_ context.Context, req PostUsersRequestObject) (PostUsersResponseObject, error) {
+func (h *UserHandler) PostUsers(_ context.Context, request PostUsersRequestObject) (PostUsersResponseObject, error) {
 	params := userService.CreateUserParams{
-		Email: string(req.Body.Email),
-		Password: req.Body.Password,
+		Email: string(request.Body.Email),
+		Password: request.Body.Password,
 	}
 
 	newUser, err := h.service.CreateUser(params)
@@ -61,25 +62,50 @@ func (h *UserHandler) GetUsers(_ context.Context, _ GetUsersRequestObject) (GetU
 	return response, nil
 }
 
-func (h *UserHandler) PatchUsersId(_ context.Context, req PatchUsersIdRequestObject) (PatchUsersIdResponseObject, error) {
+func (h *UserHandler) GetUsersIdTasks(ctx context.Context, request GetUsersIdTasksRequestObject) (GetUsersIdTasksResponseObject, error) {
+	tasks, err := h.service.GetTasksForUser(request.Id)
+	if err != nil {
+        if strings.Contains(err.Error(), "user not found") {
+            return GetUsersIdTasks404Response{}, nil
+        }
+        return nil, err
+	}
+
+	// маппим бизнес-модель в апи-модель
+	response := make(GetUsersIdTasks200JSONResponse, 0, len(tasks))
+
+    for _, t := range tasks {
+        response = append(response, Task{
+            Id:     &t.ID,
+            Task:   &t.Task,
+            IsDone: t.IsDone,
+            UserId: &t.UserId,
+        })
+    }
+
+	log.Printf("[GET] Returned %d tasks for user ID %d", len(tasks), request.Id)
+	return response, nil
+}
+
+func (h *UserHandler) PatchUsersId(_ context.Context, request PatchUsersIdRequestObject) (PatchUsersIdResponseObject, error) {
 	params := userService.UpdateUserParams{}
 
     // Если поля бади не пустые, то кладем эти поля кладем в структурку 
-    if req.Body.Email != nil {
-        email := string(*req.Body.Email) 
+    if request.Body.Email != nil {
+        email := string(*request.Body.Email) 
         params.Email = &email
     }
     
-    if req.Body.Password != nil {
-        params.Password = req.Body.Password 
+    if request.Body.Password != nil {
+        params.Password = request.Body.Password 
     }
 
-	updatedUser, err := h.service.UpdateUser(req.Id, params)
+	updatedUser, err := h.service.UpdateUser(request.Id, params)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("[PATCH] User %d updated successfully", req.Id)
+	log.Printf("[PATCH] User %d updated successfully", request.Id)
 
 	email := openapi_types.Email(updatedUser.Email)
 
@@ -91,14 +117,18 @@ func (h *UserHandler) PatchUsersId(_ context.Context, req PatchUsersIdRequestObj
 	return response, nil
 }
 
-func (h *UserHandler) DeleteUsersId(_ context.Context, req DeleteUsersIdRequestObject) (DeleteUsersIdResponseObject, error) {
-	urlID := req.Id
+func (h *UserHandler) DeleteUsersId(_ context.Context, request DeleteUsersIdRequestObject) (DeleteUsersIdResponseObject, error) {
+    urlID := request.Id
 
-	if err := h.service.DeleteUser(urlID); err != nil {
-		return nil, err
-	}
+    if err := h.service.DeleteUser(urlID); err != nil {
+        // Если "user not found" - возвращаем 404
+        if strings.Contains(err.Error(), "user not found") {
+            return DeleteUsersId404Response{}, nil
+        }
+        // Другие ошибки - 500
+        return nil, err
+    }
 
-	log.Printf("[DELETE] User %d deleted successfully", urlID)
-
-	return DeleteUsersId204Response{}, nil
+    log.Printf("[DELETE] User %d deleted successfully", urlID)
+    return DeleteUsersId204Response{}, nil
 }

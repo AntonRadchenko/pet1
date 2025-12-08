@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
@@ -153,6 +154,114 @@ func TestGetUsers(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetTasksForUser(t *testing.T) {
+    boolPtr := func(b bool) *bool { return &b }
+    
+    tests := []struct {
+        name      string
+        userID    uint
+        want      []taskService.Task
+        wantErr   bool
+        mockSetup func(m *MockUserRepo, userID uint, want []taskService.Task)
+    }{
+        {
+            name:   "успешное получение задач пользователя",
+            userID: 1,
+            want: []taskService.Task{
+                {
+                    ID:     1,
+                    Task:   "Task 1",
+                    IsDone: boolPtr(false),
+                    UserId: 1,
+                },
+                {
+                    ID:     2,
+                    Task:   "Task 2",
+                    IsDone: boolPtr(true),
+                    UserId: 1,
+                },
+            },
+            wantErr: false,
+            mockSetup: func(m *MockUserRepo, userID uint, want []taskService.Task) {
+                dbTasks := []taskService.TaskStruct{
+                    {
+                        ID:     1,
+                        Task:   "Task 1",
+                        IsDone: false,
+                        UserId: 1,
+                    },
+                    {
+                        ID:     2,
+                        Task:   "Task 2",
+                        IsDone: true,
+                        UserId: 1,
+                    },
+                }
+                m.On("GetTasksForUser", userID).Return(dbTasks, nil)
+            },
+        },
+        {
+            name:   "пользователь без задач",
+            userID: 2,
+            want:   []taskService.Task{},
+            wantErr: false,
+            mockSetup: func(m *MockUserRepo, userID uint, want []taskService.Task) {
+                m.On("GetTasksForUser", userID).Return([]taskService.TaskStruct{}, nil)
+            },
+        },
+        {
+            name:   "ошибка - пользователь не найден",
+            userID: 999,
+            want:   nil,
+            wantErr: true,
+            mockSetup: func(m *MockUserRepo, userID uint, want []taskService.Task) {
+                m.On("GetTasksForUser", userID).Return(nil, errors.New("user not found"))
+            },
+        },
+        {
+            name:   "ошибка при получении задач",
+            userID: 3,
+            want:   nil,
+            wantErr: true,
+            mockSetup: func(m *MockUserRepo, userID uint, want []taskService.Task) {
+                m.On("GetTasksForUser", userID).Return(nil, errors.New("db error"))
+            },
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            mockRepo := new(MockUserRepo)
+            tt.mockSetup(mockRepo, tt.userID, tt.want)
+            
+            service := NewUserService(mockRepo)
+            result, err := service.GetTasksForUser(tt.userID)
+            
+            if tt.wantErr {
+                assert.Error(t, err)
+                assert.Nil(t, result)
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, len(tt.want), len(result))
+                
+                for i, wantTask := range tt.want {
+                    assert.Equal(t, wantTask.ID, result[i].ID)
+                    assert.Equal(t, wantTask.Task, result[i].Task)
+                    assert.Equal(t, wantTask.UserId, result[i].UserId)
+                    if wantTask.IsDone != nil {
+                        assert.NotNil(t, result[i].IsDone)
+                        assert.Equal(t, *wantTask.IsDone, *result[i].IsDone)
+                    } else {
+                        assert.Nil(t, result[i].IsDone)
+                    }
+                }
+            }
+            
+            mockRepo.AssertExpectations(t)
+        })
+    }
 }
 
 func TestUpdateUser(t *testing.T) {

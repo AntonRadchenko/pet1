@@ -1,6 +1,9 @@
 package userService
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
+	"github.com/stretchr/testify/mock"
+)
 
 type MockUserRepo struct {
 	mock.Mock
@@ -31,6 +34,15 @@ func (m *MockUserRepo) GetByID(id uint) (UserStruct, error) {
         user = res.(UserStruct)
     }
     return user, args.Error(1) 	
+}
+
+func (m *MockUserRepo) GetTasksForUser(userID uint) ([]taskService.TaskStruct, error) {
+    args := m.Called(userID)
+    var tasks []taskService.TaskStruct
+    if res := args.Get(0); res != nil {
+        tasks = res.([]taskService.TaskStruct)
+    }
+    return tasks, args.Error(1)
 }
 
 func (m *MockUserRepo) Update(user *UserStruct) (*UserStruct, error) {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/AntonRadchenko/WebPet1/internal/taskService"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -90,6 +91,25 @@ func (s *UserService) GetUsers() ([]User, error) {
 		})
 	}
 	return users, nil
+}
+
+func (s *UserService) GetTasksForUser(userID uint) ([]taskService.Task, error) {
+	dbTasks, err := s.repo.GetTasksForUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// маппим бд-модель в бизнес-модель
+	tasks := make([]taskService.Task, len(dbTasks))
+	for i, dbTask := range dbTasks {
+		tasks[i] = taskService.Task{
+			ID: dbTask.ID,
+			Task: dbTask.Task,
+			IsDone: &dbTask.IsDone,
+			UserId: dbTask.UserId,
+		}
+	}
+	return tasks, nil
 }
 
 func (s *UserService) UpdateUser(id uint, params UpdateUserParams) (*User, error) {
