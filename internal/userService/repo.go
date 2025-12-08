@@ -60,7 +60,7 @@ func (r *UserRepo) GetByID(id uint) (UserStruct, error) {
 	return user, nil
 }
 
-func GetTasksForUser(userID uint) ([]taskService.TaskStruct, error) {
+func (r *UserRepo) GetTasksForUser(userID uint) ([]taskService.TaskStruct, error) {
 	var user UserStruct
 
 	// Загружает пользователя вместе со всеми его задачами одним запросом
