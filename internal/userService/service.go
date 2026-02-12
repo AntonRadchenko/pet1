@@ -76,6 +76,17 @@ func (s *UserService) CreateUser(params CreateUserParams) (*User, error) {
 	}, nil
 }
 
+func (s *UserService) GetUser(id uint) (*User, error) {
+	dbUser, err := s.repo.GetByID(id)
+	if err != nil || dbUser.ID == 0 {
+		return nil, err
+	}
+	return &User{
+		ID: dbUser.ID,
+		Email: dbUser.Email
+	}, nil
+}
+
 func (s *UserService) GetUsers() ([]User, error) {
 	dbUsers, err := s.repo.GetAll()
 	if err != nil {

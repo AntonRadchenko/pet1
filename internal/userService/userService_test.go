@@ -98,6 +98,61 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
+func TestGetUser(t *testing.T) {
+    tests := []struct {
+        name      string
+        id        uint
+        want      *User
+        wantErr   bool
+        mockSetup func(m *MockUserRepo, id uint)
+    }{
+        {
+            name: "успешное получение пользователя",
+            id:   1,
+            want: &User{
+                ID:    1,
+                Email: "test@example.com",
+            },
+            wantErr: false,
+            mockSetup: func(m *MockUserRepo, id uint) {
+                m.On("GetByID", id).Return(UserStruct{
+                    ID:    1,
+                    Email: "test@example.com",
+                }, nil)
+            },
+        },
+        {
+            name:    "пользователь не найден",
+            id:      999,
+            want:    nil,
+            wantErr: true,
+            mockSetup: func(m *MockUserRepo, id uint) {
+                m.On("GetByID", id).Return(UserStruct{}, gorm.ErrRecordNotFound)
+            },
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            mockRepo := new(MockUserRepo)
+            tt.mockSetup(mockRepo, tt.id)
+
+            service := NewUserService(mockRepo)
+            result, err := service.GetUser(tt.id)
+
+            if tt.wantErr {
+                assert.Error(t, err)
+                assert.Nil(t, result)
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.want.ID, result.ID)
+                assert.Equal(t, tt.want.Email, result.Email)
+            }
+            mockRepo.AssertExpectations(t)
+        })
+    }
+}
+
 func TestGetUsers(t *testing.T) {
 	tests := []struct {
 		name      string
